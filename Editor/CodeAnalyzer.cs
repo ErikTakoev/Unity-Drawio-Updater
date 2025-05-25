@@ -9,18 +9,30 @@ using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
 
-namespace Utils
+namespace Expecto
 {
     [InitializeOnLoad]
     public static class CodeAnalyzer
     {
-        private static string outputDirectory = "CodeAnalysis";
-        private static string[] namespaceFilters = new string[] { "BattleField", "Merge2" };
+        private static string outputDirectory;
+        private static string[] namespaceFilters;
 
         // Static constructor that is called when Unity is started or scripts are recompiled
         static CodeAnalyzer()
         {
-            CompilationPipeline.compilationFinished += OnCompilationFinished;
+            var settings = AssetDatabase.FindAssets("t:CodeAnalyzerSettings");
+            if (settings.Length > 0)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(settings[0]);
+                var settingsAsset = AssetDatabase.LoadAssetAtPath<CodeAnalyzerSettings>(path);
+                namespaceFilters = settingsAsset.namespaceFilters;
+                outputDirectory = settingsAsset.outputDirectory;
+                CompilationPipeline.compilationFinished += OnCompilationFinished;
+            }
+            else
+            {
+                Debug.LogError("CodeAnalyzerSettings not found");
+            }
         }
 
         // Will be called when scripts are recompiled
@@ -39,6 +51,21 @@ namespace Utils
 
         private static void AnalyzeCode()
         {
+            var settings = AssetDatabase.FindAssets("t:CodeAnalyzerSettings");
+            if (settings.Length > 0)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(settings[0]);
+                var settingsAsset = AssetDatabase.LoadAssetAtPath<CodeAnalyzerSettings>(path);
+                namespaceFilters = settingsAsset.namespaceFilters;
+                outputDirectory = settingsAsset.outputDirectory;
+            }
+            else
+            {
+                Debug.LogError("CodeAnalyzerSettings not found");
+                return;
+            }
+
+
             Debug.Log("Starting code analysis...");
 
             List<ClassInfo> classes = new List<ClassInfo>();
@@ -76,7 +103,7 @@ namespace Utils
                         }
 
                         // Filter by namespace if needed
-                        if (type.Namespace != null && namespaceFilters.Any(filter => type.Namespace.StartsWith(filter)))
+                        if (type.Namespace != null && namespaceFilters.Any(filter => type.Namespace == filter))
                         {
                             ClassInfo classInfo = new ClassInfo
                             {
