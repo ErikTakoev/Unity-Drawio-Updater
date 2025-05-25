@@ -25,14 +25,8 @@ def parse_xml_to_class_data(xml_path):
         
         # Проходимо по всім класам у XML
         for class_elem in root.findall('.//Class'):
-            name_elem = class_elem.find('Name')
-            if name_elem is None:
-                name_elem = class_elem.find('n')  # Перевіряємо альтернативний тег назви
-            
-            base_class_elem = class_elem.find('BaseClass')
-            
-            name = name_elem.text if name_elem is not None else "UnknownClass"
-            base_class = base_class_elem.text if base_class_elem is not None else None
+            name = class_elem.get('n')
+            base_class =  class_elem.get('b')
             
             # Збираємо поля
             fields_elem = class_elem.find('Fields')
@@ -40,7 +34,7 @@ def parse_xml_to_class_data(xml_path):
             if fields_elem is not None:
                 field_items = fields_elem.findall('Field')
                 if field_items:
-                    fields_text = "<br/>".join([field.text for field in field_items if field.text])
+                    fields_text = "<br/>".join([field.get('v') for field in field_items if field.get('v')])
             
             # Збираємо методи
             methods_elem = class_elem.find('Methods')
@@ -48,7 +42,7 @@ def parse_xml_to_class_data(xml_path):
             if methods_elem is not None:
                 method_items = methods_elem.findall('Method')
                 if method_items:
-                    methods_text = "<br/>".join([method.text for method in method_items if method.text])
+                    methods_text = "<br/>".join([method.get('v') for method in method_items if method.get('v')])
             
             if fields_text == "":
                 fields_text = None
