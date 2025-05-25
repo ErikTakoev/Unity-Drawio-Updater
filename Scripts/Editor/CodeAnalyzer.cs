@@ -20,19 +20,7 @@ namespace Expecto
         // Static constructor that is called when Unity is started or scripts are recompiled
         static CodeAnalyzer()
         {
-            var settings = AssetDatabase.FindAssets("t:CodeAnalyzerSettings");
-            if (settings.Length > 0)
-            {
-                var path = AssetDatabase.GUIDToAssetPath(settings[0]);
-                var settingsAsset = AssetDatabase.LoadAssetAtPath<CodeAnalyzerSettings>(path);
-                namespaceFilters = settingsAsset.namespaceFilters;
-                outputDirectory = settingsAsset.outputDirectory;
-                CompilationPipeline.compilationFinished += OnCompilationFinished;
-            }
-            else
-            {
-                Debug.LogError("CodeAnalyzerSettings not found");
-            }
+            CompilationPipeline.compilationFinished += OnCompilationFinished;
         }
 
         // Will be called when scripts are recompiled
@@ -90,6 +78,11 @@ namespace Expecto
                             continue; // Skip this type
                         }
 
+                        if (type.IsDefined(typeof(IgnoreCodeAnalyzerAttribute), false))
+                        {
+                            continue;
+                        }
+
                         // Skip types that inherit from MulticastDelegate (delegates)
                         if (type.BaseType?.Name == "MulticastDelegate")
                         {
@@ -105,14 +98,22 @@ namespace Expecto
                         // Filter by namespace if needed
                         if (type.Namespace != null && namespaceFilters.Any(filter => type.Namespace == filter))
                         {
+                            string classContext = null;
+                            if (type.IsDefined(typeof(ContextCodeAnalyzerAttribute), false))
+                            {
+                                classContext = type.GetCustomAttribute<ContextCodeAnalyzerAttribute>().Context;
+                            }
+
                             ClassInfo classInfo = new ClassInfo
                             {
                                 Name = type.Name,
                                 Namespace = type.Namespace,
                                 BaseClass = type.BaseType?.FullName,
                                 Fields = new List<FieldData>(),
-                                Methods = new List<MethodData>()
+                                Methods = new List<MethodData>(),
+                                Context = classContext
                             };
+
 
                             // Get properties first and remember their names to avoid showing similar fields
                             HashSet<string> propertyNames = new HashSet<string>();
@@ -172,6 +173,11 @@ namespace Expecto
                                     continue;
                                 }
 
+                                if (field.IsDefined(typeof(IgnoreCodeAnalyzerAttribute), false))
+                                {
+                                    continue;
+                                }
+
                                 string fieldName = field.Name;
 
                                 // Skip fields that match property names or case-insensitive versions
@@ -184,12 +190,18 @@ namespace Expecto
 
                                 string accessModifier = GetAccessModifierSymbol(field);
                                 string typeName = GetFormattedTypeName(field.FieldType);
+                                string context = null;
+                                if (field.IsDefined(typeof(ContextCodeAnalyzerAttribute), false))
+                                {
+                                    context = field.GetCustomAttribute<ContextCodeAnalyzerAttribute>().Context;
+                                }
 
                                 classInfo.Fields.Add(new FieldData
                                 {
                                     Name = fieldName,
                                     Type = typeName,
-                                    AccessModifier = accessModifier
+                                    AccessModifier = accessModifier,
+                                    Context = context
                                 });
                             }
 
@@ -209,6 +221,10 @@ namespace Expecto
                                 if (methodName.StartsWith("add_") || methodName.StartsWith("remove_"))
                                 {
                                     continue; // Skip event accessor methods
+                                }
+                                if (method.IsDefined(typeof(IgnoreCodeAnalyzerAttribute), false))
+                                {
+                                    continue;
                                 }
 
                                 // Skip anonymous methods and compiler-generated methods
@@ -242,12 +258,19 @@ namespace Expecto
                                     }
                                 }
 
+                                string context = null;
+                                if (method.IsDefined(typeof(ContextCodeAnalyzerAttribute), false))
+                                {
+                                    context = method.GetCustomAttribute<ContextCodeAnalyzerAttribute>().Context;
+                                }
+
                                 classInfo.Methods.Add(new MethodData
                                 {
                                     Name = methodName,
                                     AccessModifier = accessModifier,
                                     ReturnType = GetFormattedTypeName(method.ReturnType),
-                                    Parameters = paramList
+                                    Parameters = paramList,
+                                    Context = context
                                 });
                             }
 
@@ -388,8 +411,7 @@ namespace Expecto
                 root.SetAttribute("Namespace", namespaceName);
                 doc.AppendChild(root);
 
-                // Add comment about XML encoding
-                XmlComment comment = doc.CreateComment(" Note: Generic types use (Type1, Type2) format instead of angle brackets due to XML encoding. ");
+                XmlComment comment = doc.CreateComment("XML attribute abbreviations: n — class name; b — base class name; c — context; v — value");
                 root.AppendChild(comment);
 
                 // Sort classes by name
@@ -400,10 +422,7 @@ namespace Expecto
                 {
                     XmlElement classElement = doc.CreateElement("Class");
 
-                    // Add class attributes
-                    XmlElement nameElement = doc.CreateElement("Name");
-                    nameElement.InnerText = classInfo.Name;
-                    classElement.AppendChild(nameElement);
+                    classElement.SetAttribute("n", classInfo.Name);
 
                     if (!string.IsNullOrEmpty(classInfo.BaseClass))
                     {
@@ -418,10 +437,13 @@ namespace Expecto
                         // Skip adding Object and ValueType as a base class
                         if (baseClassName != "Object" && baseClassName != "ValueType")
                         {
-                            XmlElement baseClassElement = doc.CreateElement("BaseClass");
-                            baseClassElement.InnerText = baseClassName;
-                            classElement.AppendChild(baseClassElement);
+                            classElement.SetAttribute("b", baseClassName);
                         }
+                    }
+
+                    if (classInfo.Context != null)
+                    {
+                        classElement.SetAttribute("c", classInfo.Context);
                     }
 
                     // Sort fields - public fields first
@@ -493,7 +515,11 @@ namespace Expecto
                             fieldText = $"{field.AccessModifier} {field.Name}: {field.Type}";
                         }
 
-                        fieldElement.InnerText = fieldText;
+                        fieldElement.SetAttribute("v", fieldText);
+                        if (field.Context != null)
+                        {
+                            fieldElement.SetAttribute("c", field.Context);
+                        }
                         fieldsElement.AppendChild(fieldElement);
                     }
 
@@ -515,7 +541,11 @@ namespace Expecto
                             ? string.Join(", ", method.Parameters.Select(p => $"{p.Type} {p.Name}"))
                             : "";
 
-                        methodElement.InnerText = $"{method.AccessModifier} {method.Name}({parameters}): {method.ReturnType}";
+                        methodElement.SetAttribute("v", $"{method.AccessModifier} {method.Name}({parameters}): {method.ReturnType}");
+                        if (method.Context != null)
+                        {
+                            methodElement.SetAttribute("c", method.Context);
+                        }
                         methodsElement.AppendChild(methodElement);
                     }
 
@@ -535,6 +565,7 @@ namespace Expecto
             public string BaseClass { get; set; }
             public List<FieldData> Fields { get; set; }
             public List<MethodData> Methods { get; set; }
+            public string Context { get; set; }
         }
 
         private class FieldData
@@ -545,6 +576,7 @@ namespace Expecto
             public string GetterModifier { get; set; }
             public string SetterModifier { get; set; }
             public bool IsProperty { get; set; }
+            public string Context { get; set; }
         }
 
         private class MethodData
@@ -553,6 +585,7 @@ namespace Expecto
             public string AccessModifier { get; set; }
             public string ReturnType { get; set; }
             public List<ParameterData> Parameters { get; set; }
+            public string Context { get; set; }
         }
 
         private class ParameterData
