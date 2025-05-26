@@ -1,12 +1,11 @@
-#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using System.Xml;
 using UnityEditor;
-using UnityEditor.Compilation;
 using UnityEngine;
 
 namespace Expecto
@@ -14,48 +13,60 @@ namespace Expecto
     [InitializeOnLoad]
     public static class CodeAnalyzer
     {
+        const string LogPrefix = "CodeAnalyzer: ";
         private static string outputDirectory;
-        private static string[] namespaceFilters;
 
         // Static constructor that is called when Unity is started or scripts are recompiled
         static CodeAnalyzer()
         {
-            CompilationPipeline.compilationFinished += OnCompilationFinished;
-        }
-
-        // Will be called when scripts are recompiled
-        private static void OnCompilationFinished(object obj)
-        {
-            Debug.Log("Compilation finished - running code analysis...");
-            AnalyzeCode();
+            EditorApplication.delayCall += () =>
+            {
+                RunCodeAnalysis();
+            };
         }
 
         // Add menu item to manually trigger code analysis
         [MenuItem("Expecto/Code/Analyze Code", priority = 1000)]
         private static void AnalyzeCodeMenuItem()
         {
-            AnalyzeCode();
+            RunCodeAnalysis();
         }
 
-        private static void AnalyzeCode()
+        static void RunCodeAnalysis()
         {
+            Debug.Log(LogPrefix + "Running code analysis...");
             var settings = AssetDatabase.FindAssets("t:CodeAnalyzerSettings");
-            if (settings.Length > 0)
+            if (settings.Length == 0)
             {
-                var path = AssetDatabase.GUIDToAssetPath(settings[0]);
-                var settingsAsset = AssetDatabase.LoadAssetAtPath<CodeAnalyzerSettings>(path);
-                namespaceFilters = settingsAsset.namespaceFilters;
-                outputDirectory = settingsAsset.outputDirectory;
-            }
-            else
-            {
-                Debug.LogError("CodeAnalyzerSettings not found");
+                Debug.LogError(LogPrefix + "CodeAnalyzerSettings not found");
                 return;
             }
+            var path = AssetDatabase.GUIDToAssetPath(settings[0]);
+            var settingsAsset = AssetDatabase.LoadAssetAtPath<CodeAnalyzerSettings>(path);
+            outputDirectory = settingsAsset.outputDirectory;
+
+            Task.Run(() =>
+            {
+                foreach (var namespaceFilter in settingsAsset.namespaceFilters)
+                {
+                    AnalyzeCode(new[] { namespaceFilter }, namespaceFilter);
+                }
+
+                if (settingsAsset.combinedNamespaceFilters != null)
+                {
+                    foreach (var combinedNamespaceFilter in settingsAsset.combinedNamespaceFilters)
+                    {
+                        AnalyzeCode(combinedNamespaceFilter.namespaceFilters, combinedNamespaceFilter.outputFileName);
+                    }
+                }
 
 
-            Debug.Log("Starting code analysis...");
+                Debug.Log(LogPrefix + "Code analysis completed. Results saved to " + outputDirectory + " directory");
+            });
+        }
 
+        private static void AnalyzeCode(string[] namespaceFilters, string outputFileName)
+        {
             List<ClassInfo> classes = new List<ClassInfo>();
 
             // Get all loaded assemblies
@@ -243,21 +254,6 @@ namespace Expecto
                                     }).ToList()
                                     : new List<ParameterData>();
 
-                                // Format other compiler-generated methods to be more readable
-                                if (methodName.Contains("__") || (methodName.Contains("<") && methodName.Contains(">")))
-                                {
-                                    if (methodName.StartsWith("<"))
-                                    {
-                                        int startIndex = methodName.IndexOf('<') + 1;
-                                        int endIndex = methodName.IndexOf('>');
-                                        if (startIndex > 0 && endIndex > startIndex)
-                                        {
-                                            string parsedName = methodName.Substring(startIndex, endIndex - startIndex);
-                                            methodName = $"Generated method for {parsedName}";
-                                        }
-                                    }
-                                }
-
                                 string context = null;
                                 if (method.IsDefined(typeof(ContextCodeAnalyzerAttribute), false))
                                 {
@@ -280,14 +276,12 @@ namespace Expecto
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError($"Error analyzing assembly: {e.Message}");
+                    Debug.LogError(LogPrefix + $"Error analyzing assembly: {e.Message}");
                 }
             }
 
             // Export to XML, split by namespace
-            ExportToXmlByNamespace(classes);
-
-            Debug.Log($"Code analysis completed. Results saved to {outputDirectory} directory");
+            ExportToXmlByNamespace(classes, outputFileName);
         }
 
         private static string GetAccessModifierSymbol(MethodInfo method)
@@ -297,9 +291,9 @@ namespace Expecto
             if (method.IsPrivate)
                 return "-";
             if (method.IsFamily) // protected
-                return "-";
+                return "~";
             if (method.IsFamilyOrAssembly) // protected internal
-                return "-";
+                return "~";
             if (method.IsAssembly) // internal
                 return "~"; // using ~ for internal
 
@@ -382,7 +376,7 @@ namespace Expecto
             }
         }
 
-        private static void ExportToXmlByNamespace(List<ClassInfo> classes)
+        private static void ExportToXmlByNamespace(List<ClassInfo> classes, string outputFileName)
         {
             // Group classes by namespace
             var namespaceGroups = classes.GroupBy(c => c.Namespace).ToList();
@@ -394,25 +388,27 @@ namespace Expecto
                 Directory.CreateDirectory(outputDirPath);
             }
 
+            // Create safe filename from namespace
+            string safeFilename = outputFileName.Replace(".", "_") + ".xml";
+            string filePath = Path.Combine(outputDirPath, safeFilename);
+            string namespaceString = string.Join(";", namespaceGroups.Select(s => s.Key));
+
+            // Create XML document
+            XmlDocument doc = new XmlDocument();
+            // Create root element
+            XmlElement root = doc.CreateElement("CodeAnalysis");
+            root.SetAttribute("Namespace", namespaceString);
+            doc.AppendChild(root);
+
+            XmlComment comment = doc.CreateComment("XML attribute abbreviations: n — class name; b — base class name; c — context; v — value");
+            root.AppendChild(comment);
+            comment = doc.CreateComment($"Modifiers: '++' and '+' - public, '+-' - public getter, private setter, '~' - protected, '-' - private");
+            root.AppendChild(comment);
+
             // Create and save a file for each namespace
             foreach (var namespaceGroup in namespaceGroups)
             {
                 string namespaceName = namespaceGroup.Key;
-
-                // Create safe filename from namespace
-                string safeFilename = namespaceName.Replace(".", "_") + ".xml";
-                string filePath = Path.Combine(outputDirPath, safeFilename);
-
-                // Create XML document
-                XmlDocument doc = new XmlDocument();
-
-                // Create root element
-                XmlElement root = doc.CreateElement("CodeAnalysis");
-                root.SetAttribute("Namespace", namespaceName);
-                doc.AppendChild(root);
-
-                XmlComment comment = doc.CreateComment("XML attribute abbreviations: n — class name; b — base class name; c — context; v — value");
-                root.AppendChild(comment);
 
                 // Sort classes by name
                 var sortedClasses = namespaceGroup.OrderBy(c => c.Name).ToList();
@@ -552,10 +548,10 @@ namespace Expecto
                     root.AppendChild(classElement);
                 }
 
-                // Save to file
-                doc.Save(filePath);
-                Debug.Log($"Created file for namespace {namespaceName}: {filePath}");
             }
+
+            // Save to file
+            doc.Save(filePath);
         }
 
         private class ClassInfo
@@ -595,4 +591,3 @@ namespace Expecto
         }
     }
 }
-#endif
