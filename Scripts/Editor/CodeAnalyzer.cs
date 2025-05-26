@@ -307,9 +307,9 @@ namespace Expecto
             if (field.IsPrivate)
                 return "-";
             if (field.IsFamily) // protected
-                return "-";
+                return "~";
             if (field.IsFamilyOrAssembly) // protected internal
-                return "-";
+                return "~";
             if (field.IsAssembly) // internal
                 return "~"; // using ~ for internal
 
