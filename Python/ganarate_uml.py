@@ -70,7 +70,55 @@ def find_associations(class_data_list):
     """Знаходить асоціації між класами на основі типів полів."""
     associations = []
     
+    def process_type(type_str, source_class, depth=0):
+        """Рекурсивно обробляє тип та його дженерік-параметри.
+        
+        Args:
+            type_str: Рядок з типом для аналізу
+            source_class: Вихідний клас, який містить поле цього типу
+            depth: Поточна глибина рекурсії для відступів у виведенні
+        """
+        # Обробляємо базовий тип
+        clean_type = type_str.split("&lt;")[0].split("(")[0].split("[")[0].strip()
+        target_class = find_class_data_by_name(class_data_list, clean_type)
+        if target_class and target_class != source_class:
+            # Перевіряємо, чи вже існує така асоціація
+            if (source_class, target_class) not in associations:
+                associations.append((source_class, target_class))
+                indent = "  " * depth
+                print(f"{indent}Додано асоціацію: {source_class.name} -> {target_class.name} (з {type_str})")
+        
+        # Якщо є дженерік-параметри, обробляємо їх
+        if "&lt;" in type_str and "&gt;" in type_str:
+            # Отримуємо текст між &lt; та &gt;
+            generic_params_text = type_str.split("&lt;", 1)[1].split("&gt;", 1)[0]
+            # Розбиваємо параметри за комами, враховуючи вкладені дженеріки
+            generic_params = []
+            current_param = ""
+            nested_level = 0
+            
+            for char in generic_params_text:
+                if char == ',' and nested_level == 0:
+                    generic_params.append(current_param.strip())
+                    current_param = ""
+                else:
+                    if char == '&lt;':
+                        nested_level += 1
+                    elif char == '&gt;':
+                        nested_level -= 1
+                    current_param += char
+            
+            if current_param:  # Додаємо останній параметр
+                generic_params.append(current_param.strip())
+            
+            # Рекурсивно обробляємо кожен параметр
+            for param in generic_params:
+                process_type(param, source_class, depth + 1)
+    
+    # Головний цикл для обробки всіх класів
     for source_class in class_data_list:
+        if "ChipContainer" in source_class.name:
+            print(source_class.name)
         if not source_class.fields:
             continue
         
@@ -83,13 +131,8 @@ def find_associations(class_data_list):
                 field_parts = field_line.split(":", 1)
                 field_type = field_parts[1].strip()
                 
-                # Перевіряємо, чи тип поля відповідає імені іншого класу
-                # Відкидаємо параметри дженериків і т.п.
-                clean_type = field_type.split("<")[0].split("(")[0].split("[")[0].strip()
-                
-                target_class = find_class_data_by_name(class_data_list, clean_type)
-                if target_class and target_class != source_class:
-                    associations.append((source_class, target_class))
+                # Обробляємо тип поля та його дженерік-параметри
+                process_type(field_type, source_class)
     
     return associations
 

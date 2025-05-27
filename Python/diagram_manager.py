@@ -37,6 +37,7 @@ class DiagramManager:
         self.horizontal_line_style = "line;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=inherit;dashed=0;strokeWidth=1;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;"
         self.item_style = "text;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;dashed=0;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;html=1;"
         self.association_style = "curved=1;endArrow=classic;html=1;rounded=0;"
+        self.double_association_style = "curved=1;startArrow=classic;endArrow=classic;html=1;rounded=0;"
         self.extends_style = "endArrow=block;endSize=16;endFill=0;html=1;rounded=0;"
 
         # Лічильники для позиціонування
@@ -350,6 +351,11 @@ class DiagramManager:
         target_cell = self.find_class(targetClassData.name, targetClassData.base_class)
         
         arrow = self.find_arrow(sourceClassData, targetClassData)
+        arrow2 = self.find_arrow(targetClassData, sourceClassData)
+        if arrow is None and arrow2 is not None:
+            arrow2.set('style', self.double_association_style)
+            print(f'Двостороння асоціація: {sourceClassData.name} -> {targetClassData.name}')
+            return
         if arrow is not None:
             logger.error("Стрілка між класами вже існує: " + sourceClassData.name + " -> " + targetClassData.name)
             return

@@ -348,7 +348,7 @@ namespace Expecto
             string[] argNames = genericArgs.Select(GetFormattedTypeName).ToArray();
 
             // Format using parentheses instead of angle brackets to avoid XML encoding issues
-            return $"{baseName}<{string.Join(", ", argNames)}>";
+            return $"{baseName}&lt;{string.Join(", ", argNames)}&gt;";
         }
 
         private static string GetCSharpTypeName(string typeName)
