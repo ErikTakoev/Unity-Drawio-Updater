@@ -1,0 +1,18 @@
+{
+    "name": "UML.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:9f525a2bdb3900f48b752f23cc887f85"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
