@@ -15,7 +15,7 @@ sys.path.append(os.path.join(current_dir, "UML_scripts"))
 # Імпортуємо класи з diagram_manager.py
 from diagram_manager import DiagramManager, ClassData
 
-def parse_xml_to_class_data(xml_path):
+def parse_xml_to_class_data(xml_path) -> list[ClassData]:
     """Парсить XML файл з описом класів і повертає список об'єктів ClassData."""
     try:
         tree = ET.parse(xml_path)
@@ -49,7 +49,7 @@ def parse_xml_to_class_data(xml_path):
             if methods_text == "":
                 methods_text = None
             
-            # Створюємо об'єкт ClassData
+            # Створюємо об'єкт ClassData з порожнім списком асоціацій
             class_data = ClassData(name, fields_text, methods_text, base_class, [])
             class_data_list.append(class_data)
         
@@ -68,7 +68,6 @@ def find_class_data_by_name(class_data_list, name):
 
 def find_associations(class_data_list):
     """Знаходить асоціації між класами на основі типів полів."""
-    associations = []
     
     def process_type(type_str, source_class, depth=0):
         """Рекурсивно обробляє тип та його дженерік-параметри.
@@ -82,9 +81,9 @@ def find_associations(class_data_list):
         clean_type = type_str.split("&lt;")[0].split("(")[0].split("[")[0].strip()
         target_class = find_class_data_by_name(class_data_list, clean_type)
         if target_class and target_class != source_class:
-            # Перевіряємо, чи вже існує така асоціація
-            if (source_class, target_class) not in associations:
-                associations.append((source_class, target_class))
+            # Перевіряємо, чи вже існує така асоціація в списку асоціацій вихідного класу
+            if target_class not in source_class.associations:
+                source_class.associations.append(target_class)
                 indent = "  " * depth
                 print(f"{indent}Додано асоціацію: {source_class.name} -> {target_class.name} (з {type_str})")
         
@@ -117,8 +116,7 @@ def find_associations(class_data_list):
     
     # Головний цикл для обробки всіх класів
     for source_class in class_data_list:
-        if "ChipContainer" in source_class.name:
-            print(source_class.name)
+        
         if not source_class.fields:
             continue
         
@@ -134,9 +132,8 @@ def find_associations(class_data_list):
                 # Обробляємо тип поля та його дженерік-параметри
                 process_type(field_type, source_class)
     
-    return associations
 
-def create_uml_diagram(class_data_list, output_path):
+def create_uml_diagram(class_data_list : list[ClassData], output_path, cleanup_classes, cleanup_associations):
     """Створює UML діаграму на основі списку об'єктів ClassData."""
     try:
         # Ініціалізуємо менеджер діаграм
@@ -146,6 +143,9 @@ def create_uml_diagram(class_data_list, output_path):
         if not manager.open_diagram_or_create(output_path):
             print(f"Не вдалося відкрити або створити діаграму: {output_path}")
             return False
+        
+        # Спочатку знаходимо всі асоціації між класами
+        find_associations(class_data_list)
         
         # Додаємо класи до діаграми
         for class_data in class_data_list:
@@ -159,10 +159,15 @@ def create_uml_diagram(class_data_list, output_path):
                     manager.set_extends(base_class_data, class_data)
         
         # Додаємо асоціації між класами
-        associations = find_associations(class_data_list)
-        for source_class, target_class in associations:
-            manager.set_association(source_class, target_class)
-            print(f"Додано асоціацію: {source_class.name} -> {target_class.name}")
+        for class_data in class_data_list:
+            for target_class in class_data.associations:
+                manager.set_association(class_data, target_class)
+                print(f"Додано асоціацію: {class_data.name} -> {target_class.name}")
+
+        if cleanup_classes:
+            manager.cleanup_classes(class_data_list)
+        if cleanup_associations:
+            manager.cleanup_associations(class_data_list)
         
         # Зберігаємо діаграму
         if manager.save_diagram():
@@ -181,6 +186,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Створення UML діаграм з XML файлів')
     parser.add_argument('--input', '-i', required=True, help='Папка з XML файлами')
     parser.add_argument('--output', '-o', required=True, help='Папка для збереження UML діаграм')
+    parser.add_argument('--cleanup-classes', action='store_true', help='Автоматично видаляє класи, які більше не існують у коді')
+    parser.add_argument('--cleanup-associations', action='store_true', help='Автоматично видаляє асоціації, які більше не існують у коді')
     return parser.parse_args()
 
 def main():
@@ -225,7 +232,7 @@ def main():
         print(f"Знайдено {len(class_data_list)} класів у файлі {file_name}.")
         
         # Створюємо UML діаграму
-        create_uml_diagram(class_data_list, output_path)
+        create_uml_diagram(class_data_list, output_path, args.cleanup_classes, args.cleanup_associations)
 
 if __name__ == "__main__":
     main()

@@ -301,6 +301,25 @@ class DiagramManager:
                     self.create_class_item(classData.methods, find_class.attrib['id'], 120)
                 else:
                     logger.error("Не вірний формат діаграми. Клас: " + classData.name)
+            elif classData.fields is not None or classData.methods is not None:
+                val = classData.fields
+                if val is None:
+                    val = classData.methods
+                root_obj = self.mxgraph_model.find('root')
+                if root_obj is None:
+                    logger.error("Не знайдено кореневий об'єкт у моделі")
+                    return None
+        
+                if len(items) == 1:
+                    items[0].set('value', val)
+                elif len(items) == 0:
+                    self.create_class_item(val, find_class.attrib['id'])
+                elif len(items) == 3:
+                    items[0].set('value', val)
+                    root_obj.remove(items[1])
+                    root_obj.remove(items[2])
+                else:
+                    logger.error("Не вірний формат діаграми. Клас: " + classData.name)
         return find_class
 
 
@@ -468,6 +487,79 @@ class DiagramManager:
 
         logger.info("Створено тестовий клас з елементами")
 
+    def cleanup_classes(self, class_data_list : list[ClassData]):
+        """Видаляє класи, які більше не існують у коді."""
+
+    def cleanup_associations(self, class_data_list : list[ClassData]):
+        """Видаляє асоціації, які більше не існують у коді."""
+        all_associations = []
+        root_obj = self.mxgraph_model.find('root')
+        if root_obj is None:
+            logger.error("Не знайдено кореневий об'єкт у моделі")
+            return None
+        
+        # Шукаємо всі двосторонні асоціації
+        for cell in root_obj.findall('mxCell'):
+            style = cell.get('style')
+            if style == self.double_association_style or style == self.association_style:
+                all_associations.append(cell)
+
+        # Перевіряємо, чи асоціація ще актуальна
+        for association in all_associations:
+            source_cell = self.find_cell({'id': association.get('source')})
+            target_cell = self.find_cell({'id': association.get('target')})
+            if source_cell is None or target_cell is None:
+                print(f"!Асоціація не має діаграмного елементу: {association.get('source')} -> {association.get('target')}")
+                root_obj.remove(association)
+                continue
+
+            source_class_data = self.find_class_data_by_cell(source_cell, class_data_list)
+            target_class_data = self.find_class_data_by_cell(target_cell, class_data_list)
+
+            if source_class_data is None or target_class_data is None:
+                print(f"!Асоціація не має класу: {association.get('source')} -> {association.get('target')}")
+                root_obj.remove(association)
+                continue
+
+            # Перевіряю, чи асоціація ще двостороння
+            find1 = source_class_data in target_class_data.associations
+            find2 = target_class_data in source_class_data.associations
+            if find1 is False and find2 is False:
+                root_obj.remove(association)
+                print(f"!Видаляєм асоціацію: {source_class_data.name} -> {target_class_data.name}")
+            elif find1 is False:
+                if association.get('style') == self.double_association_style:
+                    association.set('style', self.association_style)
+                    print(f"!Змінюємо на односторонню асоціацію: {source_class_data.name} -> {target_class_data.name}")
+            elif find2 is False:
+                association.set('style', self.association_style)
+                association.set('source', target_cell.get('id'))
+                association.set('target', source_cell.get('id'))
+                print(f"!Змінюємо на односторонню асоціацію: {target_class_data.name} -> {source_class_data.name}")
+
+    def find_class_data_by_cell(self, cell, class_data_list : list[ClassData]):
+        class_name = cell.get('value')
+        for class_data in class_data_list:
+            if self.get_class_full_name(class_data.name, class_data.base_class) == class_name:
+                return class_data
+        return None
+
+    # Знаходить елемент за атрибутами та значеннями
+    def find_cell(self, attributes : dict[str, str]):
+        """Знаходить елемент за атрибутом та значенням."""
+        root_obj = self.mxgraph_model.find('root')
+        if root_obj is None:
+            logger.error("Не знайдено кореневий об'єкт у моделі")
+            return None
+        for cell in root_obj.findall('mxCell'):
+            is_match = True
+            for attr, value in attributes.items():
+                if cell.get(attr) != value:
+                    is_match = False
+                    break
+            if is_match:
+                return cell
+        return None
 
 # Ініціалізація менеджера діаграм
 manager = DiagramManager()

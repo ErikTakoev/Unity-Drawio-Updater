@@ -21,11 +21,11 @@ namespace Expecto
 
         [Header("UML Settings")]
 
-        [Tooltip("Remove not existing classes from UML diagram")]
-        public bool removeNotExistingClasses = false;
+        [Tooltip("Automatically clean up classes that no longer exist in the codebase")]
+        public bool cleanupClasses = false;
 
-        [Tooltip("Remove not existing associations from UML diagram")]
-        public bool removeNotExistingAssociations = false;
+        [Tooltip("Automatically clean up associations for classes")]
+        public bool cleanupAssociations = false;
 
         string GetCrossPlatformPath(string path)
         {
