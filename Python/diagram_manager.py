@@ -52,6 +52,7 @@ class DiagramManager:
         # Лічильники для позиціонування
         self.current_x = 50
         self.current_y = 50
+        self.max_height_on_line = 0
 
     def _generate_id(self):
         """Генерує унікальний ID для елементів діаграми."""
@@ -208,20 +209,20 @@ class DiagramManager:
     def get_class_full_name(self, name, base_name=None):
         full_name = name.replace("<", "&lt;").replace(">", "&gt;")
         if base_name is not None:
-            full_name = full_name + "<div>&lt;&lt;" + base_name + "&gt;&gt;</div>"
+            full_name = full_name + "<br/>&lt;&lt;" + base_name + "&gt;&gt;"
         return full_name
 
-    def create_class(self, name, base_name=None):
+    def create_class(self, classData: ClassData, width, height):
         """Створює контейнер класу."""
         class_id = self._generate_id()
 
-        full_name = self.get_class_full_name(name, base_name)
+        full_name = self.get_class_full_name(classData.name, classData.base_class)
         
         geometry = {
             'x': self.current_x,
             'y': self.current_y,
-            'width': 300,
-            'height': 450
+            'width': width,
+            'height': height
         }
         
         cell = self._add_cell_to_model(
@@ -232,22 +233,25 @@ class DiagramManager:
         )
         
         # Зсуваємо позицію для наступного елементу
-        self.current_x += 350
+        self.current_x += width + 50
+        self.max_height_on_line = max(self.max_height_on_line, height)
+
         if self.current_x > 1200:
             self.current_x = 50
-            self.current_y += 500
+            self.current_y += self.max_height_on_line + 50
+            self.max_height_on_line = 0
         
         return {'id': class_id, 'cell': cell}
 
-    def create_class_item(self, value, parent_id, y=40):
+    def create_class_item(self, value, parent_id, y=40, width=300, height=205):
         """Створює елемент класу."""
         item_id = self._generate_id()
         
         geometry = {
             'x': 0,
             'y': y,  # Зсув вниз від заголовка контейнера
-            'width': 300,
-            'height': 205
+            'width': width,
+            'height': height
         }
         
         cell = self._add_cell_to_model(
@@ -260,14 +264,14 @@ class DiagramManager:
         
         return {'id': item_id, 'cell': cell}
 
-    def create_class_separator(self, parent_id, y=0):
+    def create_class_separator(self, parent_id, y=0, width=300):
         """Створює розділювач класу."""
         separator_id = self._generate_id()
         
         geometry = {
             'x': 0,
             'y': y,
-            'width': 300,
+            'width': width,
             'height': 2
         }
         
@@ -284,15 +288,24 @@ class DiagramManager:
     def set_data_in_class(self, classData: ClassData):
         """Встановлює дані у клас."""
 
+        fields_width, fields_height = self.get_size_of_fields(classData)
+        methods_width, methods_height = self.get_size_of_methods(classData)
+
+        class_width = max(fields_width, methods_width)
+        class_width = max(class_width, self.get_size_of_string(self.get_class_full_name(classData.name, classData.base_class))[0])
+        class_height = 40 + fields_height + methods_height
+
         find_class = self.find_class(classData.name, classData.base_class)
         if find_class is None:
-            classUML = self.create_class(classData.name, classData.base_class)
+            classUML = self.create_class(classData, class_width, class_height)
+            y = 40
             if classData.fields is not None:
-                self.create_class_item(classData.fields, classUML['id'])
+                self.create_class_item(classData.fields, classUML['id'], y, class_width, fields_height)
+                y += fields_height
                 if classData.methods is not None:
-                    self.create_class_separator(classUML['id'], 245)
+                    self.create_class_separator(classUML['id'], y, class_width)
             if classData.methods is not None:
-                self.create_class_item(classData.methods, classUML['id'], 245)
+                self.create_class_item(classData.methods, classUML['id'], y, class_width, methods_height)
             return self.find_class(classData.name, classData.base_class)
         else:
             items = self.find_class_items(find_class.attrib['id'])
@@ -302,12 +315,14 @@ class DiagramManager:
                     items[2].set('value', classData.methods)
                 elif len(items) == 1:
                     items[0].set('value', classData.fields)
-                    self.create_class_separator(find_class.attrib['id'], 245)
-                    self.create_class_item(classData.methods, find_class.attrib['id'])
+                    y += fields_height
+                    self.create_class_separator(find_class.attrib['id'], y, class_width)
+                    self.create_class_item(classData.methods, find_class.attrib['id'], y, class_width, methods_height)
                 elif len(items) == 0:
-                    self.create_class_item(classData.fields, find_class.attrib['id'])
-                    self.create_class_separator(find_class.attrib['id'], 245)
-                    self.create_class_item(classData.methods, find_class.attrib['id'], 245)
+                    self.create_class_item(classData.fields, find_class.attrib['id'], y, class_width, fields_height)
+                    y += fields_height
+                    self.create_class_separator(find_class.attrib['id'], y, class_width)
+                    self.create_class_item(classData.methods, find_class.attrib['id'], y, class_width, methods_height)
                 else:
                     logger.error("Не вірний формат діаграми. Клас: " + classData.name)
             elif classData.fields is not None or classData.methods is not None:
@@ -327,6 +342,26 @@ class DiagramManager:
                     logger.error("Не вірний формат діаграми. Клас: " + classData.name)
         return find_class
 
+    def get_size_of_fields(self, classData: ClassData) -> tuple[int, int]: 
+        return self.get_size_of_string(classData.fields)
+    
+    def get_size_of_methods(self, classData: ClassData) -> tuple[int, int]: 
+        return self.get_size_of_string(classData.methods)
+    
+    def get_size_of_string(self, string: str) -> tuple[int, int]:
+        if string is None:
+            return 0, 0
+        strings = string.replace("&lt;", "<").replace("&gt;", ">").split("<br/>")
+        width, height = 50, 20
+        for s in strings:
+            tmpWidth = 50 + len(s) * 5.3
+            if tmpWidth > 450:
+                tmpWidth = tmpWidth * 0.66
+                height += 14
+            width = max(width, tmpWidth)
+            height += 14
+        return width, height
+    
 
     def find_class(self, className, baseClassName):
         """Знаходить клас за ім'ям."""
@@ -335,8 +370,8 @@ class DiagramManager:
         for cell in self.root_obj.findall('mxCell'):
             if cell.get('value') == full_name:
                 return cell
-        
         return None
+
     def find_class_items(self, parent_id):
         
         items = []
@@ -345,13 +380,7 @@ class DiagramManager:
                 items.append(cell)
 
         return items
-        
-    def set_position_for_class(self, classData: ClassData, x, y):
-        """Встановлює позицію для класу."""
-        class_cell = self.find_class(classData.name, classData.base_class)
-        if class_cell is not None:
-            class_cell.set('x', str(x))
-            class_cell.set('y', str(y))
+
     
     def set_association(self, sourceClassData: ClassData, targetClassData: ClassData):
         """ <mxCell id="jwncBWTa32pbU5dlyMau-578999791956" value="" style="curved=1;endArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="308272553998" target="230583623881">
