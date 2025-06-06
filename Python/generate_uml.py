@@ -25,7 +25,7 @@ def parse_xml_to_class_data(xml_path) -> list[ClassData]:
         
         # Проходимо по всім класам у XML
         for class_elem in root.findall('.//Class'):
-            name = class_elem.get('n')
+            name = class_elem.get('n').replace("<", "&lt;").replace(">", "&gt;")
             base_class =  class_elem.get('b')
             
             # Збираємо поля
@@ -34,7 +34,7 @@ def parse_xml_to_class_data(xml_path) -> list[ClassData]:
             if fields_elem is not None:
                 field_items = fields_elem.findall('Field')
                 if field_items:
-                    fields_text = "<br/>".join([field.get('v') for field in field_items if field.get('v')])
+                    fields_text = "<br/>".join([field.get('v').replace("<", "&lt;").replace(">", "&gt;") for field in field_items if field.get('v')])
             
             # Збираємо методи
             methods_elem = class_elem.find('Methods')
@@ -42,7 +42,7 @@ def parse_xml_to_class_data(xml_path) -> list[ClassData]:
             if methods_elem is not None:
                 method_items = methods_elem.findall('Method')
                 if method_items:
-                    methods_text = "<br/>".join([method.get('v') for method in method_items if method.get('v')])
+                    methods_text = "<br/>".join([method.get('v').replace("<", "&lt;").replace(">", "&gt;") for method in method_items if method.get('v')])
             
             if fields_text == "":
                 fields_text = None
@@ -78,7 +78,7 @@ def find_associations(class_data_list):
             depth: Поточна глибина рекурсії для відступів у виведенні
         """
         # Обробляємо базовий тип
-        clean_type = type_str.split("&lt;")[0].split("(")[0].split("[")[0].strip()
+        clean_type = type_str.split("(")[0].split("[")[0].strip()
         target_class = find_class_data_by_name(class_data_list, clean_type)
         if target_class and target_class != source_class:
             # Перевіряємо, чи вже існує така асоціація в списку асоціацій вихідного класу

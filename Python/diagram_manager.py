@@ -206,9 +206,9 @@ class DiagramManager:
         return cell
     
     def get_class_full_name(self, name, base_name=None):
-        full_name = name
+        full_name = name.replace("<", "&lt;").replace(">", "&gt;")
         if base_name is not None:
-            full_name = name + "<div>&lt;&lt;" + base_name + "&gt;&gt;</div>"
+            full_name = full_name + "<div>&lt;&lt;" + base_name + "&gt;&gt;</div>"
         return full_name
 
     def create_class(self, name, base_name=None):
@@ -220,8 +220,8 @@ class DiagramManager:
         geometry = {
             'x': self.current_x,
             'y': self.current_y,
-            'width': 120,
-            'height': 202
+            'width': 300,
+            'height': 450
         }
         
         cell = self._add_cell_to_model(
@@ -232,10 +232,10 @@ class DiagramManager:
         )
         
         # Зсуваємо позицію для наступного елементу
-        self.current_x += 200
-        if self.current_x > 800:
+        self.current_x += 350
+        if self.current_x > 1200:
             self.current_x = 50
-            self.current_y += 250
+            self.current_y += 500
         
         return {'id': class_id, 'cell': cell}
 
@@ -246,8 +246,8 @@ class DiagramManager:
         geometry = {
             'x': 0,
             'y': y,  # Зсув вниз від заголовка контейнера
-            'width': 120,
-            'height': 80
+            'width': 300,
+            'height': 205
         }
         
         cell = self._add_cell_to_model(
@@ -267,7 +267,7 @@ class DiagramManager:
         geometry = {
             'x': 0,
             'y': y,
-            'width': 120,
+            'width': 300,
             'height': 2
         }
         
@@ -290,9 +290,9 @@ class DiagramManager:
             if classData.fields is not None:
                 self.create_class_item(classData.fields, classUML['id'])
                 if classData.methods is not None:
-                    self.create_class_separator(classUML['id'], 120)
+                    self.create_class_separator(classUML['id'], 245)
             if classData.methods is not None:
-                self.create_class_item(classData.methods, classUML['id'], 120)
+                self.create_class_item(classData.methods, classUML['id'], 245)
             return self.find_class(classData.name, classData.base_class)
         else:
             items = self.find_class_items(find_class.attrib['id'])
@@ -302,12 +302,12 @@ class DiagramManager:
                     items[2].set('value', classData.methods)
                 elif len(items) == 1:
                     items[0].set('value', classData.fields)
-                    self.create_class_separator(find_class.attrib['id'], 120)
+                    self.create_class_separator(find_class.attrib['id'], 245)
                     self.create_class_item(classData.methods, find_class.attrib['id'])
                 elif len(items) == 0:
                     self.create_class_item(classData.fields, find_class.attrib['id'])
-                    self.create_class_separator(find_class.attrib['id'], 120)
-                    self.create_class_item(classData.methods, find_class.attrib['id'], 120)
+                    self.create_class_separator(find_class.attrib['id'], 245)
+                    self.create_class_item(classData.methods, find_class.attrib['id'], 245)
                 else:
                     logger.error("Не вірний формат діаграми. Клас: " + classData.name)
             elif classData.fields is not None or classData.methods is not None:
@@ -461,25 +461,6 @@ class DiagramManager:
                 return cell
         return None
 
-    def create_class_test(self):
-        """Створює тестовий клас з елементами."""
-
-        classData = ClassData("ExtendedContainer", "+ elements[]: ElementClass", 
-                              "+ test1: int<br/>+ test2: int<br/>+ test3: int<br/>+ test4: int<br/>+ test5: int<br/>+ test6: int<br/>+ test7: int<br/>+ test8: int<br/>+ test9: int<br/>+ test10: int<br/>+ test11: int<br/>+ test12: int<br/>+ test13: int<br/>+ test14: int<br/>+ test15: int<br/>+ test16: int<br/>+ test17: int<br/>+ test18: int<br/>+ test19: int<br/>+ test20: int<br/>", "Container", None)
-        self.set_data_in_class(classData)
-
-        classData2 = ClassData("Container", "Hello3", "+ Qweqr()", None, None)
-        self.set_data_in_class(classData2)
-
-        classData3 = ClassData("ElementClass", "+ arr: qwe", "+ Qweqr()", None, None)
-        self.set_data_in_class(classData3)
-
-        #self.set_association(classData.name, classData2.name)
-        self.set_extends(classData2, classData)
-        self.set_association(classData3, classData)
-
-        logger.info("Створено тестовий клас з елементами")
-
     def cleanup_classes(self, class_data_list : list[ClassData]):
         """Видаляє класи, які більше не існують у коді."""
         
@@ -608,17 +589,3 @@ class DiagramManager:
 
 # Ініціалізація менеджера діаграм
 manager = DiagramManager()
-
-if __name__ == "__main__":
-    # Завантаження або створення діаграми
-    test_file = "test_diagram.drawio"
-    if not manager.open_diagram_or_create(test_file):
-        print("Failed to open or create diagram")
-        exit(1)
-
-    manager.create_class_test()
-
-    if manager.save_diagram():
-        print(f"Diagram saved successfully to {test_file}")
-    else:
-        print("Failed to save diagram")
