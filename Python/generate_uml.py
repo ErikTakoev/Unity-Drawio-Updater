@@ -133,7 +133,7 @@ def find_associations(class_data_list):
                 process_type(field_type, source_class)
     
 
-def create_uml_diagram(class_data_list : list[ClassData], output_path, cleanup_classes, cleanup_associations):
+def create_uml_diagram(class_data_list : list[ClassData], output_path, cleanup_classes, cleanup_arrows):
     """Створює UML діаграму на основі списку об'єктів ClassData."""
     try:
         # Ініціалізуємо менеджер діаграм
@@ -166,8 +166,9 @@ def create_uml_diagram(class_data_list : list[ClassData], output_path, cleanup_c
 
         if cleanup_classes:
             manager.cleanup_classes(class_data_list)
-        if cleanup_associations:
+        if cleanup_arrows:
             manager.cleanup_associations(class_data_list)
+            manager.cleanup_extends(class_data_list)
         
         # Зберігаємо діаграму
         if manager.save_diagram():
@@ -187,7 +188,7 @@ def parse_arguments():
     parser.add_argument('--input', '-i', required=True, help='Папка з XML файлами')
     parser.add_argument('--output', '-o', required=True, help='Папка для збереження UML діаграм')
     parser.add_argument('--cleanup-classes', action='store_true', help='Автоматично видаляє класи, які більше не існують у коді')
-    parser.add_argument('--cleanup-associations', action='store_true', help='Автоматично видаляє асоціації, які більше не існують у коді')
+    parser.add_argument('--cleanup-arrows', action='store_true', help='Автоматично видаляє стрілки, які більше не існують у коді')
     return parser.parse_args()
 
 def main():
@@ -232,7 +233,7 @@ def main():
         print(f"Знайдено {len(class_data_list)} класів у файлі {file_name}.")
         
         # Створюємо UML діаграму
-        create_uml_diagram(class_data_list, output_path, args.cleanup_classes, args.cleanup_associations)
+        create_uml_diagram(class_data_list, output_path, args.cleanup_classes, args.cleanup_arrows)
 
 if __name__ == "__main__":
     main()

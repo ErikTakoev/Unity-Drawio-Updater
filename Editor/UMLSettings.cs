@@ -22,10 +22,10 @@ namespace Expecto
         [Header("UML Settings")]
 
         [Tooltip("Automatically clean up classes that no longer exist in the codebase")]
-        public bool cleanupClasses = false;
+        public bool cleanupClasses = true;
 
-        [Tooltip("Automatically clean up associations for classes")]
-        public bool cleanupAssociations = false;
+        [Tooltip("Automatically clean up arrows for classes")]
+        public bool cleanupArrows = true;
 
         string GetCrossPlatformPath(string path)
         {

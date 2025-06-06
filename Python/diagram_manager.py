@@ -5,6 +5,7 @@ import os
 import logging
 from pathlib import Path
 import xml.etree.ElementTree as ET
+import typing
 import uuid
 
 # Налаштування логування
@@ -23,6 +24,12 @@ class ClassData:
         self.base_class = base_class
         self.associations = associations
 
+    def get_parent(self, class_data_list : typing.List["ClassData"]) -> typing.Union["ClassData", None]:
+        for class_data in class_data_list:
+            if class_data.name == self.base_class:
+                return class_data
+        return None
+
 class DiagramManager:
     """Клас для роботи з діаграмами drawio через XML."""
 
@@ -31,6 +38,8 @@ class DiagramManager:
         self.diagram_element = None
         self.mxgraph_model = None
         self.filepath = None
+
+        self.class_style_identifier = "childLayout=stackLayout"
         
         # Стилі для елементів діаграми (з прикладу drawpyo)
         self.class_style = "swimlane;whiteSpace=wrap;rounded=0;dashed=0;fontStyle=1;childLayout=stackLayout;startSize=40;horizontalStack=0;horizontal=1;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginButtom=0;html=1;align=center;verticalAlign=top;marginBottom=0;"
@@ -82,11 +91,11 @@ class DiagramManager:
         self.mxgraph_model.set("shadow", "0")
         
         # Кореневий об'єкт
-        root_obj = ET.SubElement(self.mxgraph_model, "root")
+        self.root_obj = ET.SubElement(self.mxgraph_model, "root")
         
         # Додаємо базові елементи (0 та 1)
-        cell_0 = ET.SubElement(root_obj, "mxCell", id="0")
-        cell_1 = ET.SubElement(root_obj, "mxCell", id="1", parent="0")
+        cell_0 = ET.SubElement(self.root_obj, "mxCell", id="0")
+        cell_1 = ET.SubElement(self.root_obj, "mxCell", id="1", parent="0")
 
     def open_diagram_or_create(self, filepath):
         """
@@ -122,6 +131,10 @@ class DiagramManager:
                     self.mxgraph_model = self.diagram_element.find('mxGraphModel')
                     if self.mxgraph_model is None:
                         logger.error("Не знайдено mxGraphModel у діаграмі")
+                        return False
+                    self.root_obj = self.mxgraph_model.find('root')
+                    if self.root_obj is None:
+                        logger.error("Не знайдено кореневий об'єкт у моделі")
                         return False
                 else:
                     logger.error("Не знайдено елемент diagram")
@@ -166,13 +179,9 @@ class DiagramManager:
 
     def _add_cell_to_model(self, cell_id, value="", style="", geometry=None, parent="1", vertex="1", source=None, target=None, edge=None):
         """Додає нову клітинку до моделі діаграми."""
-        root_obj = self.mxgraph_model.find('root')
-        if root_obj is None:
-            logger.error("Не знайдено кореневий об'єкт у моделі")
-            return None
         
         # Створюємо нову клітinку
-        cell = ET.SubElement(root_obj, "mxCell")
+        cell = ET.SubElement(self.root_obj, "mxCell")
         cell.set("id", cell_id)
         cell.set("value", value)
         cell.set("style", style)
@@ -305,10 +314,6 @@ class DiagramManager:
                 val = classData.fields
                 if val is None:
                     val = classData.methods
-                root_obj = self.mxgraph_model.find('root')
-                if root_obj is None:
-                    logger.error("Не знайдено кореневий об'єкт у моделі")
-                    return None
         
                 if len(items) == 1:
                     items[0].set('value', val)
@@ -316,8 +321,8 @@ class DiagramManager:
                     self.create_class_item(val, find_class.attrib['id'])
                 elif len(items) == 3:
                     items[0].set('value', val)
-                    root_obj.remove(items[1])
-                    root_obj.remove(items[2])
+                    self.remove_cell(items[1])
+                    self.remove_cell(items[2])
                 else:
                     logger.error("Не вірний формат діаграми. Клас: " + classData.name)
         return find_class
@@ -325,25 +330,17 @@ class DiagramManager:
 
     def find_class(self, className, baseClassName):
         """Знаходить клас за ім'ям."""
-        root_obj = self.mxgraph_model.find('root')
-        if root_obj is None:
-            logger.error("Не знайдено кореневий об'єкт у моделі")
-            return None
         full_name = self.get_class_full_name(className, baseClassName)
         
-        for cell in root_obj.findall('mxCell'):
+        for cell in self.root_obj.findall('mxCell'):
             if cell.get('value') == full_name:
                 return cell
         
         return None
     def find_class_items(self, parent_id):
-        root_obj = self.mxgraph_model.find('root')
-        if root_obj is None:
-            logger.error("Не знайдено кореневий об'єкт у моделі")
-            return None
         
         items = []
-        for cell in root_obj.findall('mxCell'):
+        for cell in self.root_obj.findall('mxCell'):
             if cell.get('parent') == parent_id:
                 items.append(cell)
 
@@ -449,6 +446,7 @@ class DiagramManager:
             logger.error("Не знайдено класу: " + base_classData.name)
 
     def find_arrow(self, sourceClassData: ClassData, targetClassData: ClassData):
+        """Знаходить стрілку між класами."""
 
         source_cell = self.find_class(sourceClassData.name, sourceClassData.base_class)
         target_cell = self.find_class(targetClassData.name, targetClassData.base_class)
@@ -458,12 +456,7 @@ class DiagramManager:
             logger.error("Не знайдено класу: " + targetClassData.name)
             return None
 
-        """Знаходить стрілку між класами."""
-        root_obj = self.mxgraph_model.find('root')
-        if root_obj is None:
-            logger.error("Не знайдено кореневий об'єкт у моделі")
-            return None
-        for cell in root_obj.findall('mxCell'):
+        for cell in self.root_obj.findall('mxCell'):
             if 'source' in cell.attrib and 'target' in cell.attrib and cell.attrib['source'] == source_cell.attrib['id'] and cell.attrib['target'] == target_cell.attrib['id']:
                 return cell
         return None
@@ -489,17 +482,37 @@ class DiagramManager:
 
     def cleanup_classes(self, class_data_list : list[ClassData]):
         """Видаляє класи, які більше не існують у коді."""
+        
+        classes_to_delete = []
+        for cell in self.root_obj.findall('mxCell'):
+            if 'style' in cell.attrib and self.class_style_identifier in cell.attrib['style']:
+                classes_to_delete.append(cell)
+
+        for class_data in class_data_list:
+            for cell in classes_to_delete:
+                if self.get_class_full_name(class_data.name, class_data.base_class) == cell.get('value'):
+                    classes_to_delete.remove(cell)
+
+        for cell in classes_to_delete:
+            print(f"!Видаляємо клас: {cell.get('value')}")
+            self.remove_class_and_children(cell.get('id'))
+    
+    def remove_class_and_children(self, classId : str):
+        """Видаляє клас та його дітей."""
+        
+        for cell in self.root_obj.findall('mxCell'):
+            if cell.get('parent') == classId:
+                self.remove_cell(cell)
+        self.remove_cell(self.root_obj.find(f'mxCell[@id="{classId}"]'))
+        
+
 
     def cleanup_associations(self, class_data_list : list[ClassData]):
         """Видаляє асоціації, які більше не існують у коді."""
         all_associations = []
-        root_obj = self.mxgraph_model.find('root')
-        if root_obj is None:
-            logger.error("Не знайдено кореневий об'єкт у моделі")
-            return None
         
         # Шукаємо всі двосторонні асоціації
-        for cell in root_obj.findall('mxCell'):
+        for cell in self.root_obj.findall('mxCell'):
             style = cell.get('style')
             if style == self.double_association_style or style == self.association_style:
                 all_associations.append(cell)
@@ -510,7 +523,7 @@ class DiagramManager:
             target_cell = self.find_cell({'id': association.get('target')})
             if source_cell is None or target_cell is None:
                 print(f"!Асоціація не має діаграмного елементу: {association.get('source')} -> {association.get('target')}")
-                root_obj.remove(association)
+                self.remove_cell(association)
                 continue
 
             source_class_data = self.find_class_data_by_cell(source_cell, class_data_list)
@@ -518,14 +531,14 @@ class DiagramManager:
 
             if source_class_data is None or target_class_data is None:
                 print(f"!Асоціація не має класу: {association.get('source')} -> {association.get('target')}")
-                root_obj.remove(association)
+                self.remove_cell(association)
                 continue
 
             # Перевіряю, чи асоціація ще двостороння
             find1 = source_class_data in target_class_data.associations
             find2 = target_class_data in source_class_data.associations
             if find1 is False and find2 is False:
-                root_obj.remove(association)
+                self.remove_cell(association)
                 print(f"!Видаляєм асоціацію: {source_class_data.name} -> {target_class_data.name}")
             elif find1 is False:
                 if association.get('style') == self.double_association_style:
@@ -537,6 +550,36 @@ class DiagramManager:
                 association.set('target', source_cell.get('id'))
                 print(f"!Змінюємо на односторонню асоціацію: {target_class_data.name} -> {source_class_data.name}")
 
+    def cleanup_extends(self, class_data_list : list[ClassData]):
+        """Видаляє наслідування, які більше не існують у коді."""
+        
+        
+        extends_to_delete = []
+        for cell in self.root_obj.findall('mxCell'):
+            if 'style' in cell.attrib and self.extends_style in cell.attrib['style']:
+                extends_to_delete.append(cell)
+        
+        for cell in extends_to_delete:
+            source_cell = self.find_cell({'id': cell.get('source')})
+            target_cell = self.find_cell({'id': cell.get('target')})
+            if source_cell is None or target_cell is None:
+                print(f"!Наслідування не має діаграмного елементу: {cell.get('source')} -> {cell.get('target')}")
+                self.remove_cell(cell)
+                continue
+            
+            base_class_data = self.find_class_data_by_cell(source_cell, class_data_list)
+            class_data = self.find_class_data_by_cell(target_cell, class_data_list)
+            if base_class_data is None or class_data is None:
+                print(f"!Наслідування не має класу: {cell.get('source')} -> {cell.get('target')}")
+                self.remove_cell(cell)
+                continue
+
+            if class_data.base_class == base_class_data.name:
+                print(f"!Не вірний батьківський клас: {class_data.base_class} -> {class_data.name}")
+                self.remove_cell(cell)
+                continue
+        
+
     def find_class_data_by_cell(self, cell, class_data_list : list[ClassData]):
         class_name = cell.get('value')
         for class_data in class_data_list:
@@ -547,11 +590,8 @@ class DiagramManager:
     # Знаходить елемент за атрибутами та значеннями
     def find_cell(self, attributes : dict[str, str]):
         """Знаходить елемент за атрибутом та значенням."""
-        root_obj = self.mxgraph_model.find('root')
-        if root_obj is None:
-            logger.error("Не знайдено кореневий об'єкт у моделі")
-            return None
-        for cell in root_obj.findall('mxCell'):
+
+        for cell in self.root_obj.findall('mxCell'):
             is_match = True
             for attr, value in attributes.items():
                 if cell.get(attr) != value:
@@ -560,6 +600,11 @@ class DiagramManager:
             if is_match:
                 return cell
         return None
+    
+    def remove_cell(self, cell):
+        """Видаляє комірку з моделі."""
+        if cell in self.root_obj:
+            self.root_obj.remove(cell)
 
 # Ініціалізація менеджера діаграм
 manager = DiagramManager()

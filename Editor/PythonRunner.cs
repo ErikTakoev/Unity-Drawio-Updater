@@ -32,6 +32,15 @@ namespace Expecto
         {
             string arguments = $"{umlSettings.generateUMLPath} -i {codeAnalyzerSettings.outputDirectory} -o {umlSettings.outputDirectory}";
 
+            if (umlSettings.cleanupClasses)
+            {
+                arguments += $" --cleanup-classes";
+            }
+            if (umlSettings.cleanupArrows)
+            {
+                arguments += $" --cleanup-arrows";
+            }
+
             Debug.Log(LogPrefix + "Running Python script with arguments: " + arguments);
             System.Diagnostics.ProcessStartInfo start = new System.Diagnostics.ProcessStartInfo();
             start.FileName = umlSettings.pythonPath;
