@@ -144,6 +144,8 @@ def create_uml_diagram(class_data_list : list[ClassData], output_path, cleanup_c
             print(f"Не вдалося відкрити або створити діаграму: {output_path}")
             return False
         
+        manager.megrate_to_user_object()
+        
         # Спочатку знаходимо всі асоціації між класами
         find_associations(class_data_list)
         

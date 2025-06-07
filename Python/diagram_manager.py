@@ -616,5 +616,40 @@ class DiagramManager:
         if cell in self.root_obj:
             self.root_obj.remove(cell)
 
+    def megrate_to_user_object(self):
+        """Переводить діаграму в об'єкт для користувача."""
+
+        def copy_children(from_cell : ET.Element, to_cell : ET.Element):
+            for child in from_cell:
+                newChild = ET.SubElement(to_cell, child.tag, child.attrib)
+                copy_children(child, newChild)
+
+        cells = self.root_obj.findall('mxCell')
+        for cell in cells:
+            if not 'value' in cell.attrib or cell.attrib['value'] == "":
+                continue
+            if not 'style' in cell.attrib or ('endArrow' or 'startArrow') in cell.attrib['style']:
+                continue
+            
+            userObject = ET.SubElement(self.root_obj, 'UserObject', {'id': cell.get('id'), 'label': cell.get('value')})
+            userObject.set('tooltip', 'Test tooltip')
+            
+            newSubCell = ET.SubElement(userObject, 'mxCell', cell.attrib)
+            newSubCell.attrib.pop('value')
+            newSubCell.attrib.pop('id')
+
+            copy_children(cell, newSubCell)
+
+        for cell in cells:
+            if not 'value' in cell.attrib or cell.attrib['value'] == "":
+                continue
+            if not 'style' in cell.attrib or ('endArrow' or 'startArrow') in cell.attrib['style']:
+                continue
+            self.root_obj.remove(cell)
+
+            
+
+                
+
 # Ініціалізація менеджера діаграм
 manager = DiagramManager()
