@@ -92,6 +92,8 @@ class DiagramManager:
         self.current_y = 50
         self.max_height_on_line = 0
 
+        self.auto_resize = True
+
     def _generate_id(self):
         """Генерує унікальний ID для елементів діаграми."""
         return str(uuid.uuid4().int)[:12]  # Використовуємо числовий ID як в drawpyo
@@ -340,26 +342,26 @@ class DiagramManager:
         methods_width, methods_height = self.get_size_of_methods(classData)
 
         class_width = max(fields_width, methods_width)
-        class_width = max(class_width, self.get_size_of_string(self.get_class_full_name(classData.name, classData.base_class))[0])
+        class_width = max(class_width, self.get_size_of_string(classData.get_class_full_name())[0])
         class_height = 40 + fields_height + methods_height
+        if classData.fields is not None and classData.methods is not None:
+            class_height += 2
 
         find_class = classData.class_user_object
+        y = 40
         if find_class is None:
             find_class = self.create_class(classData, class_width, class_height)
             classData.class_id = find_class.attrib['id']
             classData.class_user_object = find_class
-            y = 40
             if classData.fields is not None:
-                self.create_class_item(classData.fields, classData.field_tooltip, classData.class_id, y, class_width, fields_height)
+                classData.first_child = self.create_class_item(classData.fields, classData.field_tooltip, classData.class_id, y, class_width, fields_height)
                 y += fields_height
                 if classData.methods is not None:
-                    self.create_class_separator(classData.class_id, y, class_width)
+                    classData.separator_child = self.create_class_separator(classData.class_id, y, class_width)
             if classData.methods is not None:
-                self.create_class_item(classData.methods, classData.method_tooltip, classData.class_id, y, class_width, methods_height)
+                classData.second_child = self.create_class_item(classData.methods, classData.method_tooltip, classData.class_id, y, class_width, methods_height)
             return find_class
         else:
-            if classData.name == "Bullet":
-                print(classData.class_user_object.attrib)
             if classData.fields is not None and classData.methods is not None:
                 if classData.first_child is not None and classData.second_child is not None:
                     classData.first_child.set('label', classData.fields)
@@ -371,12 +373,14 @@ class DiagramManager:
                     classData.first_child.set('tooltip', classData.field_tooltip)
                     y += fields_height
                     classData.separator_child = self.create_class_separator(classData.class_id, y, class_width)
-                    self.create_class_item(classData.methods, classData.method_tooltip, classData.class_id, y, class_width, methods_height)
+                    y += 2
+                    classData.second_child = self.create_class_item(classData.methods, classData.method_tooltip, classData.class_id, y, class_width, methods_height)
                 else:
-                    self.create_class_item(classData.fields, classData.field_tooltip, classData.class_id, y, class_width, fields_height)
+                    classData.first_child = self.create_class_item(classData.fields, classData.field_tooltip, classData.class_id, y, class_width, fields_height)
                     y += fields_height
                     classData.separator_child = self.create_class_separator(classData.class_id, y, class_width)
-                    self.create_class_item(classData.methods, classData.method_tooltip, classData.class_id, y, class_width, methods_height)
+                    y += 2
+                    classData.second_child = self.create_class_item(classData.methods, classData.method_tooltip, classData.class_id, y, class_width, methods_height)
 
             elif classData.fields is not None or classData.methods is not None:
                 val = classData.fields
@@ -395,7 +399,7 @@ class DiagramManager:
                     classData.first_child.set('label', val)
                     classData.first_child.set('tooltip', tooltip)
                 elif classData.first_child is None:
-                    self.create_class_item(val, tooltip, classData.class_id)
+                    classData.first_child = self.create_class_item(val, tooltip, classData.class_id, y, class_width, fields_height)
             else:
                 if classData.second_child is not None:
                     self.remove_cell(classData.second_child)
@@ -407,7 +411,45 @@ class DiagramManager:
                 classData.separator_child = None
                 classData.second_child = None
 
+        if self.auto_resize:
+            self.set_geometry(find_class, width=class_width, height=class_height)
+            tmpY = 40
+            if classData.first_child is not None:
+                tmp_height = fields_height
+                if tmp_height == 0:
+                    tmp_height = methods_height
+                self.set_geometry(classData.first_child, width=class_width, height=tmp_height)
+                tmpY += tmp_height
+            if classData.separator_child is not None:
+                self.set_geometry(classData.separator_child, y_value=tmpY, width=class_width)
+                tmpY += 2
+
+            if classData.second_child is not None:
+                self.set_geometry(classData.second_child, y_value=tmpY, width=class_width, height=methods_height)
+
         return find_class
+    
+    def set_geometry(self, cell : ET.Element, x_value : int | None = None, y_value : int | None = None, width : int | None = None, height : int | None = None):
+        
+        mxGeometry = cell.find('mxGeometry')
+        if mxGeometry is None:
+            cell = cell.find('mxCell')
+            if cell is None:
+                return
+            mxGeometry = cell.find('mxGeometry')
+            if mxGeometry is None:
+                return
+        
+        if x_value is not None:
+            mxGeometry.set('x', str(x_value))
+        if y_value is not None:
+            mxGeometry.set('y', str(y_value))
+        if width is not None:
+            mxGeometry.set('width', str(width))
+        if height is not None:
+            mxGeometry.set('height', str(height))
+        
+
 
     def get_size_of_fields(self, classData: ClassData) -> tuple[int, int]: 
         return self.get_size_of_string(classData.fields)
@@ -428,26 +470,6 @@ class DiagramManager:
             width = max(width, tmpWidth)
             height += 14
         return width, height
-    
-
-    def find_class(self, className, baseClassName):
-        """Знаходить клас за ім'ям."""
-        full_name = self.get_class_full_name(className, baseClassName)
-        
-        for cell in self.root_obj.findall('mxCell'):
-            if cell.get('value') == full_name:
-                return cell
-        return None
-
-    def find_class_items(self, parent_id):
-        
-        items = []
-        for cell in self.root_obj.findall('mxCell'):
-            if cell.get('parent') == parent_id:
-                items.append(cell)
-
-        return items
-
     
     def set_association(self, sourceClassData: ClassData, targetClassData: ClassData):
         """ <mxCell id="jwncBWTa32pbU5dlyMau-578999791956" value="" style="curved=1;endArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="308272553998" target="230583623881">
