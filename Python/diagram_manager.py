@@ -469,6 +469,8 @@ class DiagramManager:
                 height += 14
             width = max(width, tmpWidth)
             height += 14
+        width = int(width)
+        height = int(height)
         return width, height
     
     def set_association(self, sourceClassData: ClassData, targetClassData: ClassData):
