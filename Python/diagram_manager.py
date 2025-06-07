@@ -24,11 +24,49 @@ class ClassData:
         self.base_class = base_class
         self.associations = associations
 
+        self.class_tooltip = "Class tooltip"
+        self.field_tooltip = "Field tooltip"
+        self.method_tooltip = "Method tooltip"
+
+        self.class_user_object: ET.Element = None
+        self.class_id: str = None
+        self.first_child: ET.Element | None = None
+        self.separator_child: ET.Element | None = None
+        self.second_child: ET.Element | None = None
+
     def get_parent(self, class_data_list : typing.List["ClassData"]) -> typing.Union["ClassData", None]:
         for class_data in class_data_list:
             if class_data.name == self.base_class:
                 return class_data
         return None
+    def get_class_full_name(self):
+        full_name = self.name.replace("<", "&lt;").replace(">", "&gt;")
+        if self.base_class is not None:
+            full_name = full_name + "<br/>&lt;&lt;" + self.base_class + "&gt;&gt;"
+        return full_name
+    
+    def load_data_from_diagram(self, root_obj : ET.Element):
+        self.class_user_object = root_obj.find(f'UserObject[@label="{self.get_class_full_name()}"]')
+        if self.class_user_object is None:
+            return
+        
+        if self.name == "Bullet":
+            print(self.class_user_object.attrib)
+        self.class_id = self.class_user_object.get('id')
+
+        userObjects = root_obj.findall(f'.//UserObject')
+        is_first = True
+        for userObject in userObjects:
+            cell = userObject.find(f'mxCell[@parent="{self.class_id}"]')
+            if cell is None:
+                continue
+            if is_first:
+                self.first_child = userObject
+                is_first = False
+            else:
+                self.second_child = userObject
+
+        self.separator_child = root_obj.find(f'mxCell[@parent="{self.class_id}"]')
 
 class DiagramManager:
     """Клас для роботи з діаграмами drawio через XML."""
@@ -178,13 +216,21 @@ class DiagramManager:
             logger.error(f"Помилка при збереженні діаграми: {e}")
             return False
 
-    def _add_cell_to_model(self, cell_id, value="", style="", geometry=None, parent="1", vertex="1", source=None, target=None, edge=None):
+    def _add_user_object(self, tooltip="", cell_id=None, value="", style="", geometry=None, parent="1", vertex="1", source=None, target=None, edge=None):
+        userObject = ET.SubElement(self.root_obj, 'UserObject', {'id': cell_id, 'label': value, 'tooltip': tooltip})
+        self._add_cell_to_model(root_obj=userObject, cell_id=None, value=None, style=style, geometry=geometry, parent=parent, vertex=vertex, source=source, target=target, edge=edge)
+        return userObject
+
+    def _add_cell_to_model(self, root_obj=None, cell_id=None, value="", style="", geometry=None, parent="1", vertex="1", source=None, target=None, edge=None):
         """Додає нову клітинку до моделі діаграми."""
-        
+        if root_obj is None:
+            root_obj = self.root_obj
         # Створюємо нову клітinку
-        cell = ET.SubElement(self.root_obj, "mxCell")
-        cell.set("id", cell_id)
-        cell.set("value", value)
+        cell = ET.SubElement(root_obj, "mxCell")
+        if cell_id is not None:
+            cell.set("id", cell_id)
+        if value is not None:
+            cell.set("value", value)
         cell.set("style", style)
         cell.set("vertex", vertex)
         cell.set("parent", parent)
@@ -212,7 +258,7 @@ class DiagramManager:
             full_name = full_name + "<br/>&lt;&lt;" + base_name + "&gt;&gt;"
         return full_name
 
-    def create_class(self, classData: ClassData, width, height):
+    def create_class(self, classData: ClassData, width, height) -> ET.Element:
         """Створює контейнер класу."""
         class_id = self._generate_id()
 
@@ -225,9 +271,10 @@ class DiagramManager:
             'height': height
         }
         
-        cell = self._add_cell_to_model(
+        user_object = self._add_user_object(
             cell_id=class_id,
             value=full_name,
+            tooltip=classData.class_tooltip,
             style=self.class_style,
             geometry=geometry
         )
@@ -241,9 +288,9 @@ class DiagramManager:
             self.current_y += self.max_height_on_line + 50
             self.max_height_on_line = 0
         
-        return {'id': class_id, 'cell': cell}
+        return user_object
 
-    def create_class_item(self, value, parent_id, y=40, width=300, height=205):
+    def create_class_item(self, value, tooltip, parent_id, y=40, width=300, height=205) -> ET.Element:
         """Створює елемент класу."""
         item_id = self._generate_id()
         
@@ -254,17 +301,18 @@ class DiagramManager:
             'height': height
         }
         
-        cell = self._add_cell_to_model(
+        user_object = self._add_user_object(
             cell_id=item_id,
             value=value,
+            tooltip=tooltip,
             style=self.item_style,
             geometry=geometry,
             parent=parent_id
         )
         
-        return {'id': item_id, 'cell': cell}
+        return user_object
 
-    def create_class_separator(self, parent_id, y=0, width=300):
+    def create_class_separator(self, parent_id, y=0, width=300) -> ET.Element:
         """Створює розділювач класу."""
         separator_id = self._generate_id()
         
@@ -283,7 +331,7 @@ class DiagramManager:
             parent=parent_id
         )
         
-        return {'id': separator_id, 'cell': cell}
+        return cell
     
     def set_data_in_class(self, classData: ClassData):
         """Встановлює дані у клас."""
@@ -295,51 +343,70 @@ class DiagramManager:
         class_width = max(class_width, self.get_size_of_string(self.get_class_full_name(classData.name, classData.base_class))[0])
         class_height = 40 + fields_height + methods_height
 
-        find_class = self.find_class(classData.name, classData.base_class)
+        find_class = classData.class_user_object
         if find_class is None:
-            classUML = self.create_class(classData, class_width, class_height)
+            find_class = self.create_class(classData, class_width, class_height)
+            classData.class_id = find_class.attrib['id']
+            classData.class_user_object = find_class
             y = 40
             if classData.fields is not None:
-                self.create_class_item(classData.fields, classUML['id'], y, class_width, fields_height)
+                self.create_class_item(classData.fields, classData.field_tooltip, classData.class_id, y, class_width, fields_height)
                 y += fields_height
                 if classData.methods is not None:
-                    self.create_class_separator(classUML['id'], y, class_width)
+                    self.create_class_separator(classData.class_id, y, class_width)
             if classData.methods is not None:
-                self.create_class_item(classData.methods, classUML['id'], y, class_width, methods_height)
-            return self.find_class(classData.name, classData.base_class)
+                self.create_class_item(classData.methods, classData.method_tooltip, classData.class_id, y, class_width, methods_height)
+            return find_class
         else:
-            items = self.find_class_items(find_class.attrib['id'])
+            if classData.name == "Bullet":
+                print(classData.class_user_object.attrib)
             if classData.fields is not None and classData.methods is not None:
-                if len(items) == 3:
-                    items[0].set('value', classData.fields)
-                    items[2].set('value', classData.methods)
-                elif len(items) == 1:
-                    items[0].set('value', classData.fields)
+                if classData.first_child is not None and classData.second_child is not None:
+                    classData.first_child.set('label', classData.fields)
+                    classData.first_child.set('tooltip', classData.field_tooltip)
+                    classData.second_child.set('label', classData.methods)
+                    classData.second_child.set('tooltip', classData.method_tooltip)
+                elif classData.first_child is not None:
+                    classData.first_child.set('label', classData.fields)
+                    classData.first_child.set('tooltip', classData.field_tooltip)
                     y += fields_height
-                    self.create_class_separator(find_class.attrib['id'], y, class_width)
-                    self.create_class_item(classData.methods, find_class.attrib['id'], y, class_width, methods_height)
-                elif len(items) == 0:
-                    self.create_class_item(classData.fields, find_class.attrib['id'], y, class_width, fields_height)
-                    y += fields_height
-                    self.create_class_separator(find_class.attrib['id'], y, class_width)
-                    self.create_class_item(classData.methods, find_class.attrib['id'], y, class_width, methods_height)
+                    classData.separator_child = self.create_class_separator(classData.class_id, y, class_width)
+                    self.create_class_item(classData.methods, classData.method_tooltip, classData.class_id, y, class_width, methods_height)
                 else:
-                    logger.error("Не вірний формат діаграми. Клас: " + classData.name)
+                    self.create_class_item(classData.fields, classData.field_tooltip, classData.class_id, y, class_width, fields_height)
+                    y += fields_height
+                    classData.separator_child = self.create_class_separator(classData.class_id, y, class_width)
+                    self.create_class_item(classData.methods, classData.method_tooltip, classData.class_id, y, class_width, methods_height)
+
             elif classData.fields is not None or classData.methods is not None:
                 val = classData.fields
+                tooltip = classData.field_tooltip
                 if val is None:
                     val = classData.methods
-        
-                if len(items) == 1:
-                    items[0].set('value', val)
-                elif len(items) == 0:
-                    self.create_class_item(val, find_class.attrib['id'])
-                elif len(items) == 3:
-                    items[0].set('value', val)
-                    self.remove_cell(items[1])
-                    self.remove_cell(items[2])
-                else:
-                    logger.error("Не вірний формат діаграми. Клас: " + classData.name)
+                    tooltip = classData.method_tooltip
+                if classData.first_child is not None and classData.second_child is not None:
+                    classData.first_child.set('label', val)
+                    classData.first_child.set('tooltip', tooltip)
+                    self.remove_cell(classData.separator_child)
+                    self.remove_cell(classData.second_child)
+                    classData.separator_child = None
+                    classData.second_child = None
+                elif classData.first_child is not None:
+                    classData.first_child.set('label', val)
+                    classData.first_child.set('tooltip', tooltip)
+                elif classData.first_child is None:
+                    self.create_class_item(val, tooltip, classData.class_id)
+            else:
+                if classData.second_child is not None:
+                    self.remove_cell(classData.second_child)
+                if classData.separator_child is not None:
+                    self.remove_cell(classData.separator_child)
+                if classData.first_child is not None:
+                    self.remove_cell(classData.first_child)
+                classData.first_child = None
+                classData.separator_child = None
+                classData.second_child = None
+
         return find_class
 
     def get_size_of_fields(self, classData: ClassData) -> tuple[int, int]: 
@@ -392,8 +459,8 @@ class DiagramManager:
         """Встановлює асоціацію між класами."""
 
 
-        source_cell = self.find_class(sourceClassData.name, sourceClassData.base_class)
-        target_cell = self.find_class(targetClassData.name, targetClassData.base_class)
+        source_cell = sourceClassData.class_user_object
+        target_cell = targetClassData.class_user_object
         
         arrow = self.find_arrow(sourceClassData, targetClassData)
         arrow2 = self.find_arrow(targetClassData, sourceClassData)
@@ -412,8 +479,8 @@ class DiagramManager:
                 value="",
                 style=self.association_style,
                 parent="1",
-                source=source_cell.attrib['id'],
-                target=target_cell.attrib['id'],
+                source=sourceClassData.class_id,
+                target=targetClassData.class_id,
                 edge="1"
             )
             # MxGeometry
@@ -446,8 +513,8 @@ class DiagramManager:
             logger.error("Стрілка між класами вже існує: " + base_classData.name + " -> " + classData.name)
             return
         
-        class_cell = self.find_class(classData.name, classData.base_class)
-        base_class_cell = self.find_class(base_classData.name, base_classData.base_class)
+        class_cell = classData.class_user_object
+        base_class_cell = base_classData.class_user_object
         
 
         if class_cell is not None and base_class_cell is not None:
@@ -457,8 +524,8 @@ class DiagramManager:
                 value="Extends",
                 style=self.extends_style,
                 parent="1",
-                source=base_class_cell.attrib['id'],
-                target=class_cell.attrib['id'],
+                source=base_classData.class_id,
+                target=classData.class_id,
                 edge="1"
             )
             # MxGeometry
@@ -477,8 +544,8 @@ class DiagramManager:
     def find_arrow(self, sourceClassData: ClassData, targetClassData: ClassData):
         """Знаходить стрілку між класами."""
 
-        source_cell = self.find_class(sourceClassData.name, sourceClassData.base_class)
-        target_cell = self.find_class(targetClassData.name, targetClassData.base_class)
+        source_cell = sourceClassData.class_user_object
+        target_cell = targetClassData.class_user_object
 
         if source_cell is None or target_cell is None:
             logger.error("Не знайдено класу: " + sourceClassData.name)
