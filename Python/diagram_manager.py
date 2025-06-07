@@ -607,15 +607,15 @@ class DiagramManager:
 
         # Перевіряємо, чи асоціація ще актуальна
         for association in all_associations:
-            source_cell = self.find_cell({'id': association.get('source')})
-            target_cell = self.find_cell({'id': association.get('target')})
+            source_cell = self.find_user_object({'id': association.get('source')})
+            target_cell = self.find_user_object({'id': association.get('target')})
             if source_cell is None or target_cell is None:
                 print(f"!Асоціація не має діаграмного елементу: {association.get('source')} -> {association.get('target')}")
                 self.remove_cell(association)
                 continue
 
-            source_class_data = self.find_class_data_by_cell(source_cell, class_data_list)
-            target_class_data = self.find_class_data_by_cell(target_cell, class_data_list)
+            source_class_data = self.find_class_data_by_user_object(source_cell, class_data_list)
+            target_class_data = self.find_class_data_by_user_object(target_cell, class_data_list)
 
             if source_class_data is None or target_class_data is None:
                 print(f"!Асоціація не має класу: {association.get('source')} -> {association.get('target')}")
@@ -648,15 +648,15 @@ class DiagramManager:
                 extends_to_delete.append(cell)
         
         for cell in extends_to_delete:
-            source_cell = self.find_cell({'id': cell.get('source')})
-            target_cell = self.find_cell({'id': cell.get('target')})
+            source_cell = self.find_user_object({'id': cell.get('source')})
+            target_cell = self.find_user_object({'id': cell.get('target')})
             if source_cell is None or target_cell is None:
                 print(f"!Наслідування не має діаграмного елементу: {cell.get('source')} -> {cell.get('target')}")
                 self.remove_cell(cell)
                 continue
             
-            base_class_data = self.find_class_data_by_cell(source_cell, class_data_list)
-            class_data = self.find_class_data_by_cell(target_cell, class_data_list)
+            base_class_data = self.find_class_data_by_user_object(source_cell, class_data_list)
+            class_data = self.find_class_data_by_user_object(target_cell, class_data_list)
             if base_class_data is None or class_data is None:
                 print(f"!Наслідування не має класу: {cell.get('source')} -> {cell.get('target')}")
                 self.remove_cell(cell)
@@ -668,25 +668,25 @@ class DiagramManager:
                 continue
         
 
-    def find_class_data_by_cell(self, cell, class_data_list : list[ClassData]):
-        class_name = cell.get('value')
+    def find_class_data_by_user_object(self, userObject : ET.Element, class_data_list : list[ClassData]):
+        class_name = userObject.get('label')
         for class_data in class_data_list:
-            if self.get_class_full_name(class_data.name, class_data.base_class) == class_name:
+            if class_data.get_class_full_name() == class_name:
                 return class_data
         return None
 
     # Знаходить елемент за атрибутами та значеннями
-    def find_cell(self, attributes : dict[str, str]):
+    def find_user_object(self, attributes : dict[str, str]):
         """Знаходить елемент за атрибутом та значенням."""
 
-        for cell in self.root_obj.findall('mxCell'):
+        for userObject in self.root_obj.findall('UserObject'):
             is_match = True
             for attr, value in attributes.items():
-                if cell.get(attr) != value:
+                if userObject.get(attr) != value:
                     is_match = False
                     break
             if is_match:
-                return cell
+                return userObject
         return None
     
     def remove_cell(self, cell):
