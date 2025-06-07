@@ -561,27 +561,38 @@ class DiagramManager:
         """Видаляє класи, які більше не існують у коді."""
         
         classes_to_delete = []
-        for cell in self.root_obj.findall('mxCell'):
-            if 'style' in cell.attrib and self.class_style_identifier in cell.attrib['style']:
-                classes_to_delete.append(cell)
+        for userObj in self.root_obj.findall('UserObject'):
+            cell = userObj.find('mxCell')
+            if cell is not None and 'style' in cell.attrib and self.class_style_identifier in cell.attrib['style']:
+                classes_to_delete.append(userObj)
 
         for class_data in class_data_list:
             for cell in classes_to_delete:
-                if self.get_class_full_name(class_data.name, class_data.base_class) == cell.get('value'):
+                if self.get_class_full_name(class_data.name, class_data.base_class) == cell.get('label'):
                     classes_to_delete.remove(cell)
 
         for cell in classes_to_delete:
-            print(f"!Видаляємо клас: {cell.get('value')}")
+            print(f"!Видаляємо клас: {cell.get('label')}")
             self.remove_class_and_children(cell.get('id'))
     
     def remove_class_and_children(self, classId : str):
-        """Видаляє клас та його дітей."""
+        """Видаляє клас та його дітей, а також стрілки, які на нього вказують."""
+
+        userObjects = self.root_obj.findall('UserObject')
+        for userObject in userObjects:
+            if userObject.get('id') == classId:
+                self.remove_cell(userObject)
+                continue
+            cell = userObject.find(f'mxCell[@parent="{classId}"]')
+            if cell is not None:
+                self.remove_cell(userObject)
+                continue
         
-        for cell in self.root_obj.findall('mxCell'):
-            if cell.get('parent') == classId:
+        cells = self.root_obj.findall('mxCell')
+        for cell in cells:
+            if cell.get('source') == classId or cell.get('target') == classId or cell.get('parent') == classId:
                 self.remove_cell(cell)
-        self.remove_cell(self.root_obj.find(f'mxCell[@id="{classId}"]'))
-        
+                continue
 
 
     def cleanup_associations(self, class_data_list : list[ClassData]):

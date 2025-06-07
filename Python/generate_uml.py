@@ -169,8 +169,8 @@ def create_uml_diagram(class_data_list : list[ClassData], output_path, cleanup_c
                 manager.set_association(class_data, target_class)
                 print(f"Додано асоціацію: {class_data.name} -> {target_class.name}")
 
-        # if cleanup_classes:
-        #     manager.cleanup_classes(class_data_list)
+        if cleanup_classes:
+            manager.cleanup_classes(class_data_list)
         # if cleanup_arrows:
         #     manager.cleanup_associations(class_data_list)
         #     manager.cleanup_extends(class_data_list)
