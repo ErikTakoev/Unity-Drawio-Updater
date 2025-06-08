@@ -30,11 +30,16 @@ class ClassData:
         field = field.replace("<", "&lt;").replace(">", "&gt;")
         if tooltip is not None:
             tooltip = tooltip.replace("<", "&lt;").replace(">", "&gt;")
+            
+            # - damage: float
+            short_field = field.split(":")[0]
+            short_field = short_field.split(" ")[1]
+
 
             if self.fields_tooltip == "":
-                self.fields_tooltip = tooltip
+                self.fields_tooltip = short_field + ": " + tooltip
             else:
-                self.fields_tooltip += "<br/>" + tooltip
+                self.fields_tooltip += "<br/>" + short_field + ": " + tooltip
         
         if self.fields is None:
             self.fields = field
@@ -46,10 +51,15 @@ class ClassData:
         
         if tooltip is not None:
             tooltip = tooltip.replace("<", "&lt;").replace(">", "&gt;")
+
+            # + Enter(): void
+            short_method = method.split(":")[0]
+            short_method = short_method.split(" ")[1]
+
             if self.methods_tooltip == "":
-                self.methods_tooltip = tooltip
+                self.methods_tooltip = short_method + ": " + tooltip
             else:
-                self.methods_tooltip += "<br/>" + tooltip
+                self.methods_tooltip += "<br/>" + short_method + ": " + tooltip
         
         if self.methods is None:
             self.methods = method

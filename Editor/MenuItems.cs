@@ -18,14 +18,6 @@ namespace Expecto.Editor
 
             if (!PythonRunner.LoadSettings(out codeAnalyzerSettings, out umlSettings))
             {
-                if (codeAnalyzerSettings == null)
-                {
-                    Debug.LogError(LogPrefix + "CodeAnalyzerSettings not found");
-                }
-                if (umlSettings == null)
-                {
-                    Debug.LogError(LogPrefix + "UMLSettings not found");
-                }
                 return false;
             }
             return true;
@@ -54,14 +46,6 @@ namespace Expecto.Editor
 
             if (!PythonRunner.LoadSettings(out codeAnalyzerSettings, out umlSettings))
             {
-                if (codeAnalyzerSettings == null)
-                {
-                    Debug.LogError(LogPrefix + "CodeAnalyzerSettings not found");
-                }
-                if (umlSettings == null)
-                {
-                    Debug.LogError(LogPrefix + "UMLSettings not found");
-                }
                 return false;
             }
 
@@ -103,14 +87,6 @@ namespace Expecto.Editor
 
             if (!PythonRunner.LoadSettings(out codeAnalyzerSettings, out umlSettings))
             {
-                if (codeAnalyzerSettings == null)
-                {
-                    Debug.LogError(LogPrefix + "CodeAnalyzerSettings not found");
-                }
-                if (umlSettings == null)
-                {
-                    Debug.LogError(LogPrefix + "UMLSettings not found");
-                }
                 return false;
             }
 
@@ -130,7 +106,6 @@ namespace Expecto.Editor
             var codeAnalyzerSettings = PythonRunner.GetSettings<CodeAnalyzerSettings>("t:CodeAnalyzerSettings");
             if (codeAnalyzerSettings == null)
             {
-                Debug.LogError(LogPrefix + "CodeAnalyzerSettings not found");
                 return false;
             }
 
