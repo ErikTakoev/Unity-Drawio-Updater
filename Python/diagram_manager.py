@@ -28,7 +28,7 @@ class DiagramManager:
         self.item_style = "text;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;dashed=0;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;html=1;"
         self.association_style = "curved=1;endArrow=classic;html=1;rounded=0;"
         self.double_association_style = "curved=1;startArrow=classic;endArrow=classic;html=1;rounded=0;"
-        self.extends_style = "endArrow=block;endSize=16;endFill=0;html=1;rounded=0;"
+        self.extends_style = "endArrow=block;endSize=16;endFill=0;html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;"
 
         # Лічильники для позиціонування
         self.current_x = 50

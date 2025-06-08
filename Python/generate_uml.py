@@ -90,6 +90,7 @@ def find_associations(class_data_list : list[ClassData]):
             if target_class not in source_class.associations:
                 source_class.associations.append(target_class)
                 logger.info(f"Додано асоціацію: {source_class.name} -> {target_class.name}")
+            return
         
         # Якщо є дженерік-параметри, обробляємо їх
         if "&lt;" in type_str and "&gt;" in type_str:
