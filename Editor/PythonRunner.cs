@@ -1,34 +1,32 @@
+using System.IO;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
 
-namespace Expecto
+namespace Expecto.Editor
 {
-    public class PythonRunner
+    public static class PythonRunner
     {
         const string LogPrefix = "[PythonRunner] ";
 
-        [MenuItem("Expecto/UML/Generate UML")]
-        static void RunGenerateUML()
+        public static bool LoadSettings(out CodeAnalyzerSettings codeAnalyzerSettings, out UMLSettings umlSettings)
         {
-            var codeAnalyzerSettings = GetSettings<CodeAnalyzerSettings>("t:CodeAnalyzerSettings");
-            var umlSettings = GetSettings<UMLSettings>("t:UMLSettings");
+            codeAnalyzerSettings = GetSettings<CodeAnalyzerSettings>("t:CodeAnalyzerSettings");
+            umlSettings = GetSettings<UMLSettings>("t:UMLSettings");
 
             if (codeAnalyzerSettings == null)
             {
-                Debug.LogError(LogPrefix + "CodeAnalyzerSettings not found");
-                return;
+                return false;
             }
             if (umlSettings == null)
             {
-                Debug.LogError(LogPrefix + "UMLSettings not found");
-                return;
+                return false;
             }
 
-            RunPythonScript(codeAnalyzerSettings, umlSettings);
+            return true;
         }
 
-        static void RunPythonScript(CodeAnalyzerSettings codeAnalyzerSettings, UMLSettings umlSettings)
+        public static string GetArguments(CodeAnalyzerSettings codeAnalyzerSettings, UMLSettings umlSettings)
         {
             string arguments = $"{umlSettings.generateUMLPath} -i {codeAnalyzerSettings.outputDirectory} -o {umlSettings.outputDirectory}";
 
@@ -40,6 +38,12 @@ namespace Expecto
             {
                 arguments += $" --cleanup-arrows";
             }
+            return arguments;
+        }
+
+        public static void RunPythonScript(CodeAnalyzerSettings codeAnalyzerSettings, UMLSettings umlSettings)
+        {
+            string arguments = GetArguments(codeAnalyzerSettings, umlSettings);
 
             Debug.Log(LogPrefix + "Running Python script with arguments: " + arguments);
             System.Diagnostics.ProcessStartInfo start = new System.Diagnostics.ProcessStartInfo();
@@ -93,16 +97,16 @@ namespace Expecto
             }
         }
 
-        static T GetSettings<T>(string filter) where T : ScriptableObject
+        public static T GetSettings<T>(string filter) where T : ScriptableObject
         {
             var settings = AssetDatabase.FindAssets(filter);
             if (settings.Length == 0)
             {
-                Debug.LogError(LogPrefix + $"{filter} not found");
                 return null;
             }
             var path = AssetDatabase.GUIDToAssetPath(settings[0]);
             return AssetDatabase.LoadAssetAtPath<T>(path);
         }
+
     }
 }
