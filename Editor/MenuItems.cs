@@ -31,7 +31,7 @@ namespace Expecto.Editor
             return true;
         }
 
-        [MenuItem("Expecto/Drawio Diagram/Generate Drawio Diagram", secondaryPriority = 10000)]
+        [MenuItem("Expecto/Drawio Diagram/Generate Drawio Diagram", priority = 2, secondaryPriority = 10000)]
         static void RunGenerateUML()
         {
             CodeAnalyzerSettings codeAnalyzerSettings;
@@ -69,7 +69,7 @@ namespace Expecto.Editor
             return !File.Exists(hookPath);
         }
 
-        [MenuItem("Expecto/Drawio Diagram/Add Git Post Commit Hook", secondaryPriority = 10001)]
+        [MenuItem("Expecto/Drawio Diagram/Add Git Post Commit Hook", secondaryPriority = 10002)]
         static void AddGitPostCommitHook()
         {
             CodeAnalyzerSettings codeAnalyzerSettings;
@@ -117,7 +117,7 @@ namespace Expecto.Editor
             return true;
         }
 
-        [MenuItem("Expecto/Drawio Diagram/Open Settings", secondaryPriority = 10002)]
+        [MenuItem("Expecto/Drawio Diagram/Open Settings", priority = 2, secondaryPriority = 10001)]
         static void OpenSettings()
         {
             var umlSettings = PythonRunner.GetSettings<UMLSettings>("t:UMLSettings");
