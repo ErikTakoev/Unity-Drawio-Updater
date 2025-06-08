@@ -17,16 +17,19 @@ logging.basicConfig(
 logger = logging.getLogger("diagram_manager")
 
 class ClassData:
-    def __init__(self, name, fields, methods, base_class, associations):
-        self.name = name
-        self.fields = fields
-        self.methods = methods
-        self.base_class = base_class
-        self.associations = associations
+    def __init__(self, name : str, base_class : str | None, class_tooltip : str):
+        self.name : str = name
+        self.base_class : str | None = base_class
 
-        self.class_tooltip = "Class tooltip"
-        self.field_tooltip = "Field tooltip"
-        self.method_tooltip = "Method tooltip"
+        self.class_tooltip : str = class_tooltip
+        self.fields_tooltip : str = ""
+        self.methods_tooltip : str = ""
+
+        self.fields : str | None = None
+        self.methods : str | None = None
+
+        self.associations : list["ClassData"] = []
+        
 
         self.class_user_object: ET.Element = None
         self.class_id: str = None
@@ -34,11 +37,64 @@ class ClassData:
         self.separator_child: ET.Element | None = None
         self.second_child: ET.Element | None = None
 
+    def append_field(self, field : str, tooltip : str | None):
+        field = field.replace("<", "&lt;").replace(">", "&gt;")
+        if tooltip is not None:
+            tooltip = tooltip.replace("<", "&lt;").replace(">", "&gt;")
+
+            if self.fields_tooltip == "":
+                self.fields_tooltip = tooltip
+            else:
+                self.fields_tooltip += "<br/>" + tooltip
+        
+        if self.fields is None:
+            self.fields = field
+        else:
+            self.fields += "<br/>" + field
+
+    def append_method(self, method : str, tooltip : str | None):
+        method = method.replace("<", "&lt;").replace(">", "&gt;")
+        
+        if tooltip is not None:
+            tooltip = tooltip.replace("<", "&lt;").replace(">", "&gt;")
+            if self.methods_tooltip == "":
+                self.methods_tooltip = tooltip
+            else:
+                self.methods_tooltip += "<br/>" + tooltip
+        
+        if self.methods is None:
+            self.methods = method
+        else:
+            self.methods += "<br/>" + method
+
+    def get_size_of_fields(self) -> tuple[int, int]: 
+        return ClassData.get_size_of_string(self.fields)
+    
+    def get_size_of_methods(self) -> tuple[int, int]: 
+        return ClassData.get_size_of_string(self.methods)
+    
+    def get_size_of_string(string: str) -> tuple[int, int]:
+        if string is None:
+            return 0, 0
+        strings = string.replace("&lt;", "<").replace("&gt;", ">").split("<br/>")
+        width, height = 50, 20
+        for s in strings:
+            tmpWidth = 50 + len(s) * 5.3
+            if tmpWidth > 450:
+                tmpWidth = tmpWidth * 0.66
+                height += 14
+            width = max(width, tmpWidth)
+            height += 14
+        width = int(width)
+        height = int(height)
+        return width, height
+
     def get_parent(self, class_data_list : typing.List["ClassData"]) -> typing.Union["ClassData", None]:
         for class_data in class_data_list:
             if class_data.name == self.base_class:
                 return class_data
         return None
+
     def get_class_full_name(self):
         full_name = self.name.replace("<", "&lt;").replace(">", "&gt;")
         if self.base_class is not None:
@@ -50,8 +106,6 @@ class ClassData:
         if self.class_user_object is None:
             return
         
-        if self.name == "Bullet":
-            print(self.class_user_object.attrib)
         self.class_id = self.class_user_object.get('id')
 
         userObjects = root_obj.findall(f'.//UserObject')
@@ -253,18 +307,13 @@ class DiagramManager:
             geom.set("as", "geometry")
         
         return cell
-    
-    def get_class_full_name(self, name, base_name=None):
-        full_name = name.replace("<", "&lt;").replace(">", "&gt;")
-        if base_name is not None:
-            full_name = full_name + "<br/>&lt;&lt;" + base_name + "&gt;&gt;"
-        return full_name
+
 
     def create_class(self, classData: ClassData, width, height) -> ET.Element:
         """Створює контейнер класу."""
         class_id = self._generate_id()
 
-        full_name = self.get_class_full_name(classData.name, classData.base_class)
+        full_name = classData.get_class_full_name()
         
         geometry = {
             'x': self.current_x,
@@ -338,11 +387,11 @@ class DiagramManager:
     def set_data_in_class(self, classData: ClassData):
         """Встановлює дані у клас."""
 
-        fields_width, fields_height = self.get_size_of_fields(classData)
-        methods_width, methods_height = self.get_size_of_methods(classData)
+        fields_width, fields_height = classData.get_size_of_fields()
+        methods_width, methods_height = classData.get_size_of_methods()
 
         class_width = max(fields_width, methods_width)
-        class_width = max(class_width, self.get_size_of_string(classData.get_class_full_name())[0])
+        class_width = max(class_width, ClassData.get_size_of_string(classData.get_class_full_name())[0])
         class_height = 40 + fields_height + methods_height
         if classData.fields is not None and classData.methods is not None:
             class_height += 2
@@ -354,40 +403,40 @@ class DiagramManager:
             classData.class_id = find_class.attrib['id']
             classData.class_user_object = find_class
             if classData.fields is not None:
-                classData.first_child = self.create_class_item(classData.fields, classData.field_tooltip, classData.class_id, y, class_width, fields_height)
+                classData.first_child = self.create_class_item(classData.fields, classData.fields_tooltip, classData.class_id, y, class_width, fields_height)
                 y += fields_height
                 if classData.methods is not None:
                     classData.separator_child = self.create_class_separator(classData.class_id, y, class_width)
             if classData.methods is not None:
-                classData.second_child = self.create_class_item(classData.methods, classData.method_tooltip, classData.class_id, y, class_width, methods_height)
+                classData.second_child = self.create_class_item(classData.methods, classData.methods_tooltip, classData.class_id, y, class_width, methods_height)
             return find_class
         else:
             if classData.fields is not None and classData.methods is not None:
                 if classData.first_child is not None and classData.second_child is not None:
                     classData.first_child.set('label', classData.fields)
-                    classData.first_child.set('tooltip', classData.field_tooltip)
+                    classData.first_child.set('tooltip', classData.fields_tooltip)
                     classData.second_child.set('label', classData.methods)
-                    classData.second_child.set('tooltip', classData.method_tooltip)
+                    classData.second_child.set('tooltip', classData.methods_tooltip)
                 elif classData.first_child is not None:
                     classData.first_child.set('label', classData.fields)
-                    classData.first_child.set('tooltip', classData.field_tooltip)
+                    classData.first_child.set('tooltip', classData.fields_tooltip)
                     y += fields_height
                     classData.separator_child = self.create_class_separator(classData.class_id, y, class_width)
                     y += 2
-                    classData.second_child = self.create_class_item(classData.methods, classData.method_tooltip, classData.class_id, y, class_width, methods_height)
+                    classData.second_child = self.create_class_item(classData.methods, classData.methods_tooltip, classData.class_id, y, class_width, methods_height)
                 else:
-                    classData.first_child = self.create_class_item(classData.fields, classData.field_tooltip, classData.class_id, y, class_width, fields_height)
+                    classData.first_child = self.create_class_item(classData.fields, classData.fields_tooltip, classData.class_id, y, class_width, fields_height)
                     y += fields_height
                     classData.separator_child = self.create_class_separator(classData.class_id, y, class_width)
                     y += 2
-                    classData.second_child = self.create_class_item(classData.methods, classData.method_tooltip, classData.class_id, y, class_width, methods_height)
+                    classData.second_child = self.create_class_item(classData.methods, classData.methods_tooltip, classData.class_id, y, class_width, methods_height)
 
             elif classData.fields is not None or classData.methods is not None:
                 val = classData.fields
-                tooltip = classData.field_tooltip
+                tooltip = classData.fields_tooltip
                 if val is None:
                     val = classData.methods
-                    tooltip = classData.method_tooltip
+                    tooltip = classData.methods_tooltip
                 if classData.first_child is not None and classData.second_child is not None:
                     classData.first_child.set('label', val)
                     classData.first_child.set('tooltip', tooltip)
@@ -448,30 +497,7 @@ class DiagramManager:
             mxGeometry.set('width', str(width))
         if height is not None:
             mxGeometry.set('height', str(height))
-        
 
-
-    def get_size_of_fields(self, classData: ClassData) -> tuple[int, int]: 
-        return self.get_size_of_string(classData.fields)
-    
-    def get_size_of_methods(self, classData: ClassData) -> tuple[int, int]: 
-        return self.get_size_of_string(classData.methods)
-    
-    def get_size_of_string(self, string: str) -> tuple[int, int]:
-        if string is None:
-            return 0, 0
-        strings = string.replace("&lt;", "<").replace("&gt;", ">").split("<br/>")
-        width, height = 50, 20
-        for s in strings:
-            tmpWidth = 50 + len(s) * 5.3
-            if tmpWidth > 450:
-                tmpWidth = tmpWidth * 0.66
-                height += 14
-            width = max(width, tmpWidth)
-            height += 14
-        width = int(width)
-        height = int(height)
-        return width, height
     
     def set_association(self, sourceClassData: ClassData, targetClassData: ClassData):
         """ <mxCell id="jwncBWTa32pbU5dlyMau-578999791956" value="" style="curved=1;endArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="308272553998" target="230583623881">
@@ -489,14 +515,15 @@ class DiagramManager:
         arrow = self.find_arrow(sourceClassData, targetClassData)
         arrow2 = self.find_arrow(targetClassData, sourceClassData)
         if arrow is None and arrow2 is not None:
-            arrow2.set('style', self.double_association_style)
-            print(f'Двостороння асоціація: {sourceClassData.name} -> {targetClassData.name}')
+            if arrow2.get('style') != self.double_association_style:
+                arrow2.set('style', self.double_association_style)
+                print(f'!Тепер двостороння асоціація: {sourceClassData.name} <-> {targetClassData.name}')
             return
         if arrow is not None:
-            logger.error("Стрілка між класами вже існує: " + sourceClassData.name + " -> " + targetClassData.name)
             return
         
         if source_cell is not None and target_cell is not None:
+            print(f'!Створення асоціації: {sourceClassData.name} -> {targetClassData.name}')
             association_id = self._generate_id()
             association_cell = self._add_cell_to_model(
                 cell_id=association_id,
@@ -517,9 +544,6 @@ class DiagramManager:
             mxPoint.set("as", "sourcePoint")
             mxPoint = ET.SubElement(mxGeometry, "mxPoint")
             mxPoint.set("as", "targetPoint")
-        else:
-            logger.error("Не знайдено класу: " + sourceClassData.name)
-            logger.error("Не знайдено класу: " + targetClassData.name)
 
     def set_extends(self, classData: ClassData, base_classData: ClassData):
         """Встановлює наслідування між класами."""
@@ -592,7 +616,7 @@ class DiagramManager:
 
         for class_data in class_data_list:
             for cell in classes_to_delete:
-                if self.get_class_full_name(class_data.name, class_data.base_class) == cell.get('label'):
+                if class_data.get_class_full_name() == cell.get('label'):
                     classes_to_delete.remove(cell)
 
         for cell in classes_to_delete:
@@ -665,7 +689,6 @@ class DiagramManager:
     def cleanup_extends(self, class_data_list : list[ClassData]):
         """Видаляє наслідування, які більше не існують у коді."""
         
-        
         extends_to_delete = []
         for cell in self.root_obj.findall('mxCell'):
             if 'style' in cell.attrib and self.extends_style in cell.attrib['style']:
@@ -690,7 +713,6 @@ class DiagramManager:
                 print(f"!Не вірний батьківський клас: {class_data.base_class} -> {class_data.name}")
                 self.remove_cell(cell)
                 continue
-        
 
     def find_class_data_by_user_object(self, userObject : ET.Element, class_data_list : list[ClassData]):
         class_name = userObject.get('label')
@@ -712,7 +734,7 @@ class DiagramManager:
             if is_match:
                 return userObject
         return None
-    
+
     def remove_cell(self, cell):
         """Видаляє комірку з моделі."""
         if cell in self.root_obj:

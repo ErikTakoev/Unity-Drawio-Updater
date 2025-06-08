@@ -27,32 +27,25 @@ def parse_xml_to_class_data(xml_path) -> list[ClassData]:
         for class_elem in root.findall('.//Class'):
             name = class_elem.get('n').replace("<", "&lt;").replace(">", "&gt;")
             base_class =  class_elem.get('b')
+            class_tooltip = class_elem.get('c', "")
+            
+            class_data = ClassData(name=name, base_class=base_class, class_tooltip=class_tooltip)
+            class_data_list.append(class_data)
             
             # Збираємо поля
             fields_elem = class_elem.find('Fields')
-            fields_text = ""
             if fields_elem is not None:
                 field_items = fields_elem.findall('Field')
                 if field_items:
-                    fields_text = "<br/>".join([field.get('v').replace("<", "&lt;").replace(">", "&gt;") for field in field_items if field.get('v')])
-            
+                    for field in field_items:
+                        class_data.append_field(field.get('v'), field.get('c', None))
             # Збираємо методи
             methods_elem = class_elem.find('Methods')
-            methods_text = ""
             if methods_elem is not None:
                 method_items = methods_elem.findall('Method')
                 if method_items:
-                    methods_text = "<br/>".join([method.get('v').replace("<", "&lt;").replace(">", "&gt;") for method in method_items if method.get('v')])
-            
-            if fields_text == "":
-                fields_text = None
-            if methods_text == "":
-                methods_text = None
-            
-            # Створюємо об'єкт ClassData з порожнім списком асоціацій
-            class_data = ClassData(name, fields_text, methods_text, base_class, [])
-            class_data_list.append(class_data)
-        
+                    for method in method_items:
+                        class_data.append_method(method.get('v'), method.get('c', None))
         return class_data_list
     
     except Exception as e:
@@ -66,7 +59,7 @@ def find_class_data_by_name(class_data_list, name):
             return class_data
     return None
 
-def find_associations(class_data_list):
+def find_associations(class_data_list : list[ClassData]):
     """Знаходить асоціації між класами на основі типів полів."""
     
     def process_type(type_str, source_class, depth=0):
@@ -84,8 +77,6 @@ def find_associations(class_data_list):
             # Перевіряємо, чи вже існує така асоціація в списку асоціацій вихідного класу
             if target_class not in source_class.associations:
                 source_class.associations.append(target_class)
-                indent = "  " * depth
-                print(f"{indent}Додано асоціацію: {source_class.name} -> {target_class.name} (з {type_str})")
         
         # Якщо є дженерік-параметри, обробляємо їх
         if "&lt;" in type_str and "&gt;" in type_str:
@@ -167,7 +158,6 @@ def create_uml_diagram(class_data_list : list[ClassData], output_path, cleanup_c
         for class_data in class_data_list:
             for target_class in class_data.associations:
                 manager.set_association(class_data, target_class)
-                print(f"Додано асоціацію: {class_data.name} -> {target_class.name}")
 
         if cleanup_classes:
             manager.cleanup_classes(class_data_list)
