@@ -7,13 +7,21 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 import argparse
 import glob
-
-# Додаємо шлях до директорії з diagram_manager.py
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(current_dir, "UML_scripts"))
+import logging
 
 # Імпортуємо класи з diagram_manager.py
 from diagram_manager import DiagramManager, ClassData
+
+# Налаштування логування
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    filename=os.path.join(os.path.dirname(os.path.abspath(__file__)), "Log.log"),
+    encoding='utf-8',  # Додаємо явне вказання кодування UTF-8
+    filemode='w'  # Режим 'w' перезаписує файл при кожному запуску
+)
+logger = logging.getLogger()
+
 
 def parse_xml_to_class_data(xml_path) -> list[ClassData]:
     """Парсить XML файл з описом класів і повертає список об'єктів ClassData."""
@@ -31,6 +39,7 @@ def parse_xml_to_class_data(xml_path) -> list[ClassData]:
             
             class_data = ClassData(name=name, base_class=base_class, class_tooltip=class_tooltip)
             class_data_list.append(class_data)
+            logger.info(f"Додано клас: {class_data.name}")
             
             # Збираємо поля
             fields_elem = class_elem.find('Fields')
@@ -39,6 +48,8 @@ def parse_xml_to_class_data(xml_path) -> list[ClassData]:
                 if field_items:
                     for field in field_items:
                         class_data.append_field(field.get('v'), field.get('c', None))
+                logger.info(f"Додано поля для класу: {class_data.name}")
+
             # Збираємо методи
             methods_elem = class_elem.find('Methods')
             if methods_elem is not None:
@@ -46,10 +57,11 @@ def parse_xml_to_class_data(xml_path) -> list[ClassData]:
                 if method_items:
                     for method in method_items:
                         class_data.append_method(method.get('v'), method.get('c', None))
+                    logger.info(f"Додано методи для класу: {class_data.name}")
         return class_data_list
     
     except Exception as e:
-        print(f"Помилка при парсингу XML: {e}")
+        logger.error(f"Помилка при парсингу XML: {e}")
         return []
 
 def find_class_data_by_name(class_data_list, name):
@@ -77,6 +89,7 @@ def find_associations(class_data_list : list[ClassData]):
             # Перевіряємо, чи вже існує така асоціація в списку асоціацій вихідного класу
             if target_class not in source_class.associations:
                 source_class.associations.append(target_class)
+                logger.info(f"Додано асоціацію: {source_class.name} -> {target_class.name}")
         
         # Якщо є дженерік-параметри, обробляємо їх
         if "&lt;" in type_str and "&gt;" in type_str:
@@ -128,7 +141,7 @@ def create_uml_diagram(class_data_list : list[ClassData], output_path, cleanup_c
     """Створює UML діаграму на основі списку об'єктів ClassData."""
     try:
         # Ініціалізуємо менеджер діаграм
-        manager = DiagramManager()
+        manager = DiagramManager(logger)
         
         # Відкриваємо існуючу діаграму або створюємо нову
         if not manager.open_diagram_or_create(output_path):

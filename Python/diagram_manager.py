@@ -5,131 +5,20 @@ import os
 import logging
 from pathlib import Path
 import xml.etree.ElementTree as ET
-import typing
 import uuid
+from class_data import ClassData
 
-# Налаштування логування
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    filename="uml_generator.log"
-)
-logger = logging.getLogger("diagram_manager")
 
-class ClassData:
-    def __init__(self, name : str, base_class : str | None, class_tooltip : str):
-        self.name : str = name
-        self.base_class : str | None = base_class
-
-        self.class_tooltip : str = class_tooltip
-        self.fields_tooltip : str = ""
-        self.methods_tooltip : str = ""
-
-        self.fields : str | None = None
-        self.methods : str | None = None
-
-        self.associations : list["ClassData"] = []
-        
-
-        self.class_user_object: ET.Element = None
-        self.class_id: str = None
-        self.first_child: ET.Element | None = None
-        self.separator_child: ET.Element | None = None
-        self.second_child: ET.Element | None = None
-
-    def append_field(self, field : str, tooltip : str | None):
-        field = field.replace("<", "&lt;").replace(">", "&gt;")
-        if tooltip is not None:
-            tooltip = tooltip.replace("<", "&lt;").replace(">", "&gt;")
-
-            if self.fields_tooltip == "":
-                self.fields_tooltip = tooltip
-            else:
-                self.fields_tooltip += "<br/>" + tooltip
-        
-        if self.fields is None:
-            self.fields = field
-        else:
-            self.fields += "<br/>" + field
-
-    def append_method(self, method : str, tooltip : str | None):
-        method = method.replace("<", "&lt;").replace(">", "&gt;")
-        
-        if tooltip is not None:
-            tooltip = tooltip.replace("<", "&lt;").replace(">", "&gt;")
-            if self.methods_tooltip == "":
-                self.methods_tooltip = tooltip
-            else:
-                self.methods_tooltip += "<br/>" + tooltip
-        
-        if self.methods is None:
-            self.methods = method
-        else:
-            self.methods += "<br/>" + method
-
-    def get_size_of_fields(self) -> tuple[int, int]: 
-        return ClassData.get_size_of_string(self.fields)
-    
-    def get_size_of_methods(self) -> tuple[int, int]: 
-        return ClassData.get_size_of_string(self.methods)
-    
-    def get_size_of_string(string: str) -> tuple[int, int]:
-        if string is None:
-            return 0, 0
-        strings = string.replace("&lt;", "<").replace("&gt;", ">").split("<br/>")
-        width, height = 50, 20
-        for s in strings:
-            tmpWidth = 50 + len(s) * 5.3
-            if tmpWidth > 450:
-                tmpWidth = tmpWidth * 0.66
-                height += 14
-            width = max(width, tmpWidth)
-            height += 14
-        width = int(width)
-        height = int(height)
-        return width, height
-
-    def get_parent(self, class_data_list : typing.List["ClassData"]) -> typing.Union["ClassData", None]:
-        for class_data in class_data_list:
-            if class_data.name == self.base_class:
-                return class_data
-        return None
-
-    def get_class_full_name(self):
-        full_name = self.name.replace("<", "&lt;").replace(">", "&gt;")
-        if self.base_class is not None:
-            full_name = full_name + "<br/>&lt;&lt;" + self.base_class + "&gt;&gt;"
-        return full_name
-    
-    def load_data_from_diagram(self, root_obj : ET.Element):
-        self.class_user_object = root_obj.find(f'UserObject[@label="{self.get_class_full_name()}"]')
-        if self.class_user_object is None:
-            return
-        
-        self.class_id = self.class_user_object.get('id')
-
-        userObjects = root_obj.findall(f'.//UserObject')
-        is_first = True
-        for userObject in userObjects:
-            cell = userObject.find(f'mxCell[@parent="{self.class_id}"]')
-            if cell is None:
-                continue
-            if is_first:
-                self.first_child = userObject
-                is_first = False
-            else:
-                self.second_child = userObject
-
-        self.separator_child = root_obj.find(f'mxCell[@parent="{self.class_id}"]')
 
 class DiagramManager:
     """Клас для роботи з діаграмами drawio через XML."""
 
-    def __init__(self):
+    def __init__(self, logger : logging.Logger):
         self.root = None
         self.diagram_element = None
         self.mxgraph_model = None
         self.filepath = None
+        self.logger = logger
 
         self.class_style_identifier = "childLayout=stackLayout"
         
@@ -212,7 +101,7 @@ class DiagramManager:
             path = Path(self.filepath)
             
             if path.exists():
-                logger.info(f"Відкриваємо існуючу діаграму: {filepath}")
+                self.logger.info(f"Відкриваємо існуючу діаграму: {filepath}")
                 
                 # Читаємо існуючий файл
                 with open(self.filepath, 'r', encoding='utf-8') as f:
@@ -225,24 +114,24 @@ class DiagramManager:
                 if self.diagram_element is not None:
                     self.mxgraph_model = self.diagram_element.find('mxGraphModel')
                     if self.mxgraph_model is None:
-                        logger.error("Не знайдено mxGraphModel у діаграмі")
+                        self.logger.error("Не знайдено mxGraphModel у діаграмі")
                         return False
                     self.root_obj = self.mxgraph_model.find('root')
                     if self.root_obj is None:
-                        logger.error("Не знайдено кореневий об'єкт у моделі")
+                        self.logger.error("Не знайдено кореневий об'єкт у моделі")
                         return False
                 else:
-                    logger.error("Не знайдено елемент diagram")
+                    self.logger.error("Не знайдено елемент diagram")
                     return False
                 
             else:
-                logger.info(f"Створюємо нову діаграму: {filepath}")
+                self.logger.info(f"Створюємо нову діаграму: {filepath}")
                 self._create_empty_diagram()
             
             return True
             
         except Exception as e:
-            logger.error(f"Помилка при відкритті/створенні діаграми: {e}")
+            self.logger.error(f"Помилка при відкритті/створенні діаграми: {e}")
             return False
 
     def save_diagram(self):
@@ -254,7 +143,7 @@ class DiagramManager:
         """
         try:
             if self.root is None:
-                logger.error("Діаграма не ініціалізована")
+                self.logger.error("Діаграма не ініціалізована")
                 return False
             
             # Створюємо директорію, якщо вона не існує
@@ -265,11 +154,11 @@ class DiagramManager:
             ET.indent(tree, space="  ", level=0)
             tree.write(self.filepath, encoding='utf-8', xml_declaration=True)
             
-            logger.info(f"Діаграму збережено: {self.filepath}")
+            self.logger.info(f"Діаграму збережено: {self.filepath}")
             return True
             
         except Exception as e:
-            logger.error(f"Помилка при збереженні діаграми: {e}")
+            self.logger.error(f"Помилка при збереженні діаграми: {e}")
             return False
 
     def _add_user_object(self, tooltip="", cell_id=None, value="", style="", geometry=None, parent="1", vertex="1", source=None, target=None, edge=None):
@@ -517,13 +406,17 @@ class DiagramManager:
         if arrow is None and arrow2 is not None:
             if arrow2.get('style') != self.double_association_style:
                 arrow2.set('style', self.double_association_style)
-                print(f'!Тепер двостороння асоціація: {sourceClassData.name} <-> {targetClassData.name}')
+                log = f'!Тепер двостороння асоціація: {sourceClassData.name} <-> {targetClassData.name}'
+                print(log)
+                self.logger.info(log)
             return
         if arrow is not None:
             return
         
         if source_cell is not None and target_cell is not None:
-            print(f'!Створення асоціації: {sourceClassData.name} -> {targetClassData.name}')
+            log = f'!Створення асоціації: {sourceClassData.name} -> {targetClassData.name}'
+            print(log)
+            self.logger.info(log)
             association_id = self._generate_id()
             association_cell = self._add_cell_to_model(
                 cell_id=association_id,
@@ -558,7 +451,7 @@ class DiagramManager:
         
         arrow = self.find_arrow(base_classData, classData)
         if arrow is not None:
-            logger.error("Стрілка між класами вже існує: " + base_classData.name + " -> " + classData.name)
+            self.logger.info("Стрілка наслідування між класами вже існує: " + base_classData.name + " -> " + classData.name)
             return
         
         class_cell = classData.class_user_object
@@ -566,6 +459,8 @@ class DiagramManager:
         
 
         if class_cell is not None and base_class_cell is not None:
+            self.logger.info(f"Створення стрілки наслідування: {base_classData.name} -> {classData.name}")
+
             extends_id = self._generate_id()
             extends_cell = self._add_cell_to_model(
                 cell_id=extends_id,
@@ -586,8 +481,8 @@ class DiagramManager:
             mxPoint = ET.SubElement(mxGeometry, "mxPoint")
             mxPoint.set("as", "targetPoint")
         else:
-            logger.error("Не знайдено класу: " + classData.name)
-            logger.error("Не знайдено класу: " + base_classData.name)
+            self.logger.error("Не знайдено класу target: " + classData.name)
+            self.logger.error("Не знайдено класу source: " + base_classData.name)
 
     def find_arrow(self, sourceClassData: ClassData, targetClassData: ClassData):
         """Знаходить стрілку між класами."""
@@ -596,8 +491,8 @@ class DiagramManager:
         target_cell = targetClassData.class_user_object
 
         if source_cell is None or target_cell is None:
-            logger.error("Не знайдено класу: " + sourceClassData.name)
-            logger.error("Не знайдено класу: " + targetClassData.name)
+            self.logger.error("Не знайдено класу source: " + sourceClassData.name)
+            self.logger.error("Не знайдено класу target: " + targetClassData.name)
             return None
 
         for cell in self.root_obj.findall('mxCell'):
@@ -658,7 +553,9 @@ class DiagramManager:
             source_cell = self.find_user_object({'id': association.get('source')})
             target_cell = self.find_user_object({'id': association.get('target')})
             if source_cell is None or target_cell is None:
-                print(f"!Асоціація не має діаграмного елементу: {association.get('source')} -> {association.get('target')}")
+                log = f"!Асоціація не має діаграмного елементу: {association.get('source')} -> {association.get('target')}"
+                print(log)
+                self.logger.error(log)
                 self.remove_cell(association)
                 continue
 
@@ -666,7 +563,9 @@ class DiagramManager:
             target_class_data = self.find_class_data_by_user_object(target_cell, class_data_list)
 
             if source_class_data is None or target_class_data is None:
-                print(f"!Асоціація не має класу: {association.get('source')} -> {association.get('target')}")
+                log = f"!Асоціація не має класу: {association.get('source')} -> {association.get('target')}"
+                print(log)
+                self.logger.error(log)
                 self.remove_cell(association)
                 continue
 
@@ -675,16 +574,23 @@ class DiagramManager:
             find2 = target_class_data in source_class_data.associations
             if find1 is False and find2 is False:
                 self.remove_cell(association)
-                print(f"!Видаляєм асоціацію: {source_class_data.name} -> {target_class_data.name}")
+                log = f"!Видаляєм асоціацію: {source_class_data.name} -> {target_class_data.name}"
+                print(log)
+                self.logger.error(log)
             elif find1 is False:
                 if association.get('style') == self.double_association_style:
                     association.set('style', self.association_style)
-                    print(f"!Змінюємо на односторонню асоціацію: {source_class_data.name} -> {target_class_data.name}")
+                    log = f"!Змінюємо на односторонню асоціацію: {source_class_data.name} -> {target_class_data.name}"
+                    print(log)
+                    self.logger.error(log)
             elif find2 is False:
                 association.set('style', self.association_style)
                 association.set('source', target_cell.get('id'))
                 association.set('target', source_cell.get('id'))
-                print(f"!Змінюємо на односторонню асоціацію: {target_class_data.name} -> {source_class_data.name}")
+                
+                log = f"!Змінюємо на односторонню асоціацію: {target_class_data.name} -> {source_class_data.name}"
+                print(log)
+                self.logger.error(log)
 
     def cleanup_extends(self, class_data_list : list[ClassData]):
         """Видаляє наслідування, які більше не існують у коді."""
@@ -698,19 +604,25 @@ class DiagramManager:
             source_cell = self.find_user_object({'id': cell.get('source')})
             target_cell = self.find_user_object({'id': cell.get('target')})
             if source_cell is None or target_cell is None:
-                print(f"!Наслідування не має діаграмного елементу: {cell.get('source')} -> {cell.get('target')}")
-                self.remove_cell(cell)
-                continue
-            
-            base_class_data = self.find_class_data_by_user_object(source_cell, class_data_list)
-            class_data = self.find_class_data_by_user_object(target_cell, class_data_list)
-            if base_class_data is None or class_data is None:
-                print(f"!Наслідування не має класу: {cell.get('source')} -> {cell.get('target')}")
+                log = f"!Наслідування не має діаграмного елементу: {cell.get('source')} -> {cell.get('target')}"
+                print(log)
+                self.logger.error(log)
                 self.remove_cell(cell)
                 continue
 
-            if class_data.base_class == base_class_data.name:
-                print(f"!Не вірний батьківський клас: {class_data.base_class} -> {class_data.name}")
+            base_class_data = self.find_class_data_by_user_object(target_cell, class_data_list)
+            class_data = self.find_class_data_by_user_object(source_cell, class_data_list)
+            if base_class_data is None or class_data is None:
+                log = f"!Наслідування не має класу: {cell.get('source')} -> {cell.get('target')}"
+                print(log)
+                self.logger.error(log)
+                self.remove_cell(cell)
+                continue
+
+            if class_data.base_class != base_class_data.name:
+                log = f"!Не вірний батьківський клас: {class_data.base_class} -> {class_data.name}"
+                print(log)
+                self.logger.error(log)
                 self.remove_cell(cell)
                 continue
 
@@ -754,6 +666,7 @@ class DiagramManager:
                 continue
             if not 'style' in cell.attrib or ('endArrow' or 'startArrow') in cell.attrib['style']:
                 continue
+            self.logger.info(f"Міграція елементу: {cell.get('value')}")
             
             userObject = ET.SubElement(self.root_obj, 'UserObject', {'id': cell.get('id'), 'label': cell.get('value')})
             userObject.set('tooltip', 'Test tooltip')
@@ -771,9 +684,3 @@ class DiagramManager:
                 continue
             self.root_obj.remove(cell)
 
-            
-
-                
-
-# Ініціалізація менеджера діаграм
-manager = DiagramManager()
