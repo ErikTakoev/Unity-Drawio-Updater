@@ -1,5 +1,5 @@
 {
-    "name": "UML.Editor",
+    "name": "DrawioUpdater.Editor",
     "rootNamespace": "",
     "references": [
         "GUID:9f525a2bdb3900f48b752f23cc887f85"
