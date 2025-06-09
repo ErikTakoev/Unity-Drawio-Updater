@@ -53,13 +53,13 @@ class ClassData:
             tooltip = tooltip.replace("<", "&lt;").replace(">", "&gt;")
 
             # + Enter(): void
-            short_method = method.split(":")[0]
+            short_method = method.split("(")[0]
             short_method = short_method.split(" ")[1]
 
             if self.methods_tooltip == "":
-                self.methods_tooltip = short_method + ": " + tooltip
+                self.methods_tooltip = short_method + "(...): " + tooltip
             else:
-                self.methods_tooltip += "<br/>" + short_method + ": " + tooltip
+                self.methods_tooltip += "<br/>" + short_method + "(...): " + tooltip
         
         if self.methods is None:
             self.methods = method
