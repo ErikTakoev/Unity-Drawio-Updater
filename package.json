@@ -1,17 +1,21 @@
 {
-  "name": "com.expecto.uml_genertor",
+  "name": "com.expecto.drawio-updater",
   "version": "0.1.0",
-  "displayName": "Unity UML Generator",
-  "description": "Unity UML Generator A convenient tool for automatically creating and updating UML diagrams based on your Unity code. Generates up-to-date class diagrams with complete representation of relationships between components in your project, preserving your layout, styles, and arrow configurations.",
-  "unity": "2019.1",
+  "displayName": "Unity Drawio Updater",
+  "description": "Unity Drawio Updater is a tool for automatically creating and updating Drawio diagrams based on your Unity code. Generates up-to-date class diagrams with complete representation of relationships between components in your project, preserving your layout, styles, and arrow configurations.",
+  "unity": "2021.3",
   "unityRelease": "0b5",
-  "documentationUrl": "https://example.com/",
-  "changelogUrl": "https://example.com/changelog.html",
-  "licensesUrl": "https://example.com/licensing.html",
+  "documentationUrl": "https://github.com/ErikTakoev/Unity-Drawio-Updater",
+  "changelogUrl": "https://github.com/ErikTakoev/Unity-Drawio-Updater/releases",
+  "licensesUrl": "https://github.com/ErikTakoev/Unity-Drawio-Updater/blob/main/LICENSE",
   "keywords": [
-    "keyword1",
-    "keyword2",
-    "keyword3"
+    "drawio",
+    "diagram",
+    "uml",
+    "class",
+    "relationship",
+    "unity",
+    "automation"
   ],
   "author": {
     "name": "Erik Takoev",
