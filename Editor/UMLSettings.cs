@@ -17,7 +17,7 @@ namespace Expecto
         public string generateUMLPath = null;
 
         [Tooltip("Output directory for generated UML files")]
-        public string outputDirectory = null;
+        public string outputDirectory = "UML";
 
         [Header("UML Settings")]
 
@@ -32,25 +32,20 @@ namespace Expecto
             // Нормалізуємо шлях для поточної ОС
             string normalizedPath = Path.GetFullPath(path);
 
+            string relativePath = Path.GetRelativePath(Application.dataPath + "/../", normalizedPath);
+
             // Для шляхів, які будуть використовуватися в Python або веб-контексті,
             // можна замінити всі зворотні слеші на прямі
-            string crossPlatformPath = normalizedPath.Replace('\\', '/');
+            string crossPlatformPath = relativePath.Replace('\\', '/');
 
             return crossPlatformPath;
         }
 
-        const string packageName = "com.expecto.uml_genertor";
+        const string packageName = "com.expecto.drawio-updater";
         static ListRequest listRequest;
 
         void OnEnable()
         {
-            if (string.IsNullOrEmpty(outputDirectory))
-            {
-                outputDirectory = GetCrossPlatformPath(Path.Combine(Application.dataPath, "..", "UML"));
-
-                EditorUtility.SetDirty(this);
-                AssetDatabase.SaveAssets();
-            }
 
             if (string.IsNullOrEmpty(generateUMLPath))
             {

@@ -229,6 +229,8 @@ def main():
         
         # Шлях до вихідного файлу drawio
         output_path = os.path.join(args.output, f"{file_name_without_ext}.drawio")
+        # Повний шлях до вихідного файлу drawio
+        output_path = os.path.abspath(output_path)
         
         print(f"\nОбробка файлу: {file_name}")
         

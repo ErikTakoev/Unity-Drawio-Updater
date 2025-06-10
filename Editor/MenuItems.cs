@@ -71,6 +71,8 @@ namespace Expecto.Editor
             string hookContent =
                 "#!/bin/bash\n" +
                 "echo 'Git post commit hook started'\n" +
+                "REPO_ROOT=$(git rev-parse --show-toplevel)\n" +
+                "cd \"$REPO_ROOT\" || exit 1\n" +
                 $"{pythonPath} {arguments}\n" +
                 "echo 'Git post commit hook finished'\n";
 
