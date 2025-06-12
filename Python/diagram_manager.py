@@ -318,6 +318,9 @@ class DiagramManager:
                 classData.second_child = self.create_class_item(classData.methods, classData.methods_tooltip, classData.class_id, y, class_width, methods_height)
             return find_class
         else:
+            if classData.class_tooltip is not None:
+                find_class.set("tooltip", classData.class_tooltip)
+
             if classData.fields is not None and classData.methods is not None:
                 if classData.first_child is not None and classData.second_child is not None:
                     classData.first_child.set('label', classData.fields)

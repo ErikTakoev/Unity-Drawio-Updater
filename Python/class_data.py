@@ -9,8 +9,10 @@ class ClassData:
     def __init__(self, name : str, base_class : str | None, class_tooltip : str):
         self.name : str = name
         self.base_class : str | None = base_class
-
+        
         self.class_tooltip : str = ClassData.format_tooltip(class_tooltip)
+        if self.class_tooltip != "":
+            self.class_tooltip = f"{self.name}:{self.class_tooltip}"
         self.fields_tooltip : str = ""
         self.methods_tooltip : str = ""
 
@@ -37,9 +39,9 @@ class ClassData:
 
 
             if self.fields_tooltip == "":
-                self.fields_tooltip = short_field + ": " + tooltip
+                self.fields_tooltip = f"<b>{short_field}</b>: {tooltip}"
             else:
-                self.fields_tooltip += "" + short_field + ": " + tooltip
+                self.fields_tooltip += f"<br/><b>{short_field}</b>: {tooltip}"
         
         if self.fields is None:
             self.fields = field
@@ -55,7 +57,7 @@ class ClassData:
             if self.methods_tooltip == "":
                 self.methods_tooltip = f'<b>{method}</b>{tooltip}'
             else:
-                self.methods_tooltip += f'<b>{method}</b>{tooltip}'
+                self.methods_tooltip += f'<br/><b>{method}</b>{tooltip}'
         
         if self.methods is None:
             self.methods = method
@@ -66,10 +68,10 @@ class ClassData:
         tooltip = tooltip.replace("; ", "\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")
         tooltip = tooltip.replace("<", "&lt;").replace(">", "&gt;")
         tooltip = tooltip.replace("Purpose:", "<br/>&nbsp;&nbsp;&nbsp;&nbsp;<b>Purpose:</b>")
-        tooltip = tooltip.replace("Usage: ", "&nbsp;&nbsp;&nbsp;&nbsp;<b>Usage:</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")
-        tooltip = tooltip.replace("Params: ", "&nbsp;&nbsp;&nbsp;&nbsp;<b>Params:</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")
-        tooltip = tooltip.replace("Returns: ", "&nbsp;&nbsp;&nbsp;&nbsp;<b>Returns:</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")
-        tooltip = tooltip.replace("Notes: ", "&nbsp;&nbsp;&nbsp;&nbsp;<b>Notes:</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")
+        tooltip = tooltip.replace("&nbsp;&nbsp;&nbsp;&nbsp;Usage:", "<b>Usage:</b>")
+        tooltip = tooltip.replace("&nbsp;&nbsp;&nbsp;&nbsp;Params: ", "<b>Params:</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")
+        tooltip = tooltip.replace("&nbsp;&nbsp;&nbsp;&nbsp;Returns:", "<b>Returns:</b>")
+        tooltip = tooltip.replace("&nbsp;&nbsp;&nbsp;&nbsp;Notes:", "<b>Notes:</b>")
 
         return tooltip
 
