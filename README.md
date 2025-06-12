@@ -2,6 +2,7 @@
 
 🇺🇸 [English](README.md) | 🇺🇦 [Українська](README_UA.md)
 
+![](Readme/Diagram.png)
 A convenient tool for automatically creating and updating UML diagrams based on your Unity code. Generates up-to-date class diagrams with complete representation of relationships between your project components, preserving your layout, styles, and arrow configurations.
 
 ## Features
@@ -9,6 +10,7 @@ A convenient tool for automatically creating and updating UML diagrams based on 
 - **Automatic UML diagram creation**: Generate class diagrams based on your Unity project code
 - **Layout preservation**: Update existing diagrams without losing element positioning
 - **Relationship analysis**: Automatic detection of inheritance and associations between classes
+- **Contextual tooltips**: Automatically add tooltips with context for classes, methods, and fields
 - **Git integration**: Option to automatically update diagrams after commits
 - **Customization**: Flexible parameters to control the diagram generation process
 
