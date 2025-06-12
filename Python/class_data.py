@@ -10,7 +10,7 @@ class ClassData:
         self.name : str = name
         self.base_class : str | None = base_class
 
-        self.class_tooltip : str = class_tooltip
+        self.class_tooltip : str = ClassData.format_tooltip(class_tooltip)
         self.fields_tooltip : str = ""
         self.methods_tooltip : str = ""
 
@@ -29,7 +29,7 @@ class ClassData:
     def append_field(self, field : str, tooltip : str | None):
         field = field.replace("<", "&lt;").replace(">", "&gt;")
         if tooltip is not None:
-            tooltip = tooltip.replace("<", "&lt;").replace(">", "&gt;")
+            tooltip = ClassData.format_tooltip(tooltip)
             
             # - damage: float
             short_field = field.split(":")[0]
@@ -39,7 +39,7 @@ class ClassData:
             if self.fields_tooltip == "":
                 self.fields_tooltip = short_field + ": " + tooltip
             else:
-                self.fields_tooltip += "<br/>" + short_field + ": " + tooltip
+                self.fields_tooltip += "" + short_field + ": " + tooltip
         
         if self.fields is None:
             self.fields = field
@@ -50,21 +50,28 @@ class ClassData:
         method = method.replace("<", "&lt;").replace(">", "&gt;")
         
         if tooltip is not None:
-            tooltip = tooltip.replace("<", "&lt;").replace(">", "&gt;")
-
-            # + Enter(): void
-            short_method = method.split("(")[0]
-            short_method = short_method.split(" ")[1]
+            tooltip = ClassData.format_tooltip(tooltip)
 
             if self.methods_tooltip == "":
-                self.methods_tooltip = short_method + "(...): " + tooltip
+                self.methods_tooltip = f'<b>{method}</b>{tooltip}'
             else:
-                self.methods_tooltip += "<br/>" + short_method + "(...): " + tooltip
+                self.methods_tooltip += f'<b>{method}</b>{tooltip}'
         
         if self.methods is None:
             self.methods = method
         else:
             self.methods += "<br/>" + method
+
+    def format_tooltip(tooltip : str) -> str:
+        tooltip = tooltip.replace("; ", "\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")
+        tooltip = tooltip.replace("<", "&lt;").replace(">", "&gt;")
+        tooltip = tooltip.replace("Purpose:", "<br/>&nbsp;&nbsp;&nbsp;&nbsp;<b>Purpose:</b>")
+        tooltip = tooltip.replace("Usage: ", "&nbsp;&nbsp;&nbsp;&nbsp;<b>Usage:</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")
+        tooltip = tooltip.replace("Params: ", "&nbsp;&nbsp;&nbsp;&nbsp;<b>Params:</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")
+        tooltip = tooltip.replace("Returns: ", "&nbsp;&nbsp;&nbsp;&nbsp;<b>Returns:</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")
+        tooltip = tooltip.replace("Notes: ", "&nbsp;&nbsp;&nbsp;&nbsp;<b>Notes:</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")
+
+        return tooltip
 
     def get_size_of_fields(self) -> tuple[int, int]: 
         return ClassData.get_size_of_string(self.fields)

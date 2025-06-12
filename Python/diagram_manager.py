@@ -25,7 +25,7 @@ class DiagramManager:
         # Стилі для елементів діаграми (з прикладу drawpyo)
         self.class_style = "swimlane;whiteSpace=wrap;rounded=0;dashed=0;fontStyle=1;childLayout=stackLayout;startSize=40;horizontalStack=0;horizontal=1;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginButtom=0;html=1;align=center;verticalAlign=top;marginBottom=0;"
         self.horizontal_line_style = "line;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=inherit;dashed=0;strokeWidth=1;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;"
-        self.item_style = "text;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;dashed=0;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;html=1;"
+        self.item_style = "text;whiteSpace=wrap;rounded=0;fillColor=default;strokeColor=none;dashed=0;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;html=1;"
         self.association_style = "curved=1;endArrow=classic;html=1;rounded=0;"
         self.double_association_style = "curved=1;startArrow=classic;endArrow=classic;html=1;rounded=0;"
         self.extends_style = "endArrow=block;endSize=16;endFill=0;html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;"
@@ -133,6 +133,23 @@ class DiagramManager:
         except Exception as e:
             self.logger.error(f"Помилка при відкритті/створенні діаграми: {e}")
             return False
+        
+    def fix_diff_xml(self, tree : ET.ElementTree):
+        # Записуємо у тимчасовий рядок
+            import io
+            with io.BytesIO() as buffer:
+                tree.write(buffer, encoding='utf-8', xml_declaration=True)
+                xml_content = buffer.getvalue().decode('utf-8')
+            
+            # Виправляємо деякі проблеми з XML
+            xml_content = xml_content.replace("\"/>", "\" />")
+            xml_content = xml_content.replace(f"<?xml version='1.0' encoding='utf-8'?>\n", "")
+            xml_content += "\n"
+            xml_content = xml_content.replace("'", "&#39;")
+            
+            # Записуємо виправлений контент у файл
+            with open(self.filepath, 'w', encoding='utf-8') as f:
+                f.write(xml_content)
 
     def save_diagram(self):
         """
@@ -152,7 +169,8 @@ class DiagramManager:
             # Записуємо файл
             tree = ET.ElementTree(self.root)
             ET.indent(tree, space="  ", level=0)
-            tree.write(self.filepath, encoding='utf-8', xml_declaration=True)
+            
+            self.fix_diff_xml(tree)
             
             self.logger.info(f"Діаграму збережено: {self.filepath}")
             return True
@@ -404,7 +422,7 @@ class DiagramManager:
         arrow = self.find_arrow(sourceClassData, targetClassData)
         arrow2 = self.find_arrow(targetClassData, sourceClassData)
         if arrow is None and arrow2 is not None:
-            if arrow2.get('style') != self.double_association_style:
+            if self.double_association_style not in arrow2.get('style'):
                 arrow2.set('style', self.double_association_style)
                 log = f'!Тепер двостороння асоціація: {sourceClassData.name} <-> {targetClassData.name}'
                 print(log)
@@ -494,9 +512,26 @@ class DiagramManager:
             self.logger.error("Не знайдено класу source: " + sourceClassData.name)
             self.logger.error("Не знайдено класу target: " + targetClassData.name)
             return None
+        
+        source_ids = [source_cell.attrib['id']]
+
+        if sourceClassData.first_child is not None:
+            source_ids.append(sourceClassData.first_child.attrib['id'])
+        if sourceClassData.second_child is not None:
+            source_ids.append(sourceClassData.second_child.attrib['id'])
+        
+
+        target_ids = [target_cell.attrib['id']]
+        if targetClassData.first_child is not None:
+            target_ids.append(targetClassData.first_child.attrib['id'])
+        if targetClassData.second_child is not None:
+            target_ids.append(targetClassData.second_child.attrib['id'])
 
         for cell in self.root_obj.findall('mxCell'):
-            if 'source' in cell.attrib and 'target' in cell.attrib and cell.attrib['source'] == source_cell.attrib['id'] and cell.attrib['target'] == target_cell.attrib['id']:
+            if 'source' in cell.attrib \
+                and 'target' in cell.attrib \
+                and cell.attrib['source'] in source_ids \
+                and cell.attrib['target'] in target_ids:
                 return cell
         return None
 
