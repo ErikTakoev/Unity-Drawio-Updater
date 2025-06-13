@@ -6,6 +6,10 @@
 
 A convenient tool for automatically creating and updating UML diagrams based on your Unity code. Generates up-to-date class diagrams with complete representation of relationships between your project components, preserving your layout, styles, and arrow configurations.
 
+## Video Presentation
+
+[![Watch the video](https://img.youtube.com/vi/Rfj9ufq07pU/0.jpg)](https://www.youtube.com/watch?v=Rfj9ufq07pU)
+
 ## Features
 
 - **Automatic UML diagram creation**: Generate class diagrams based on your Unity project code
@@ -42,6 +46,10 @@ A convenient tool for automatically creating and updating UML diagrams based on 
 - Unity 2019.1 or newer
 - Python 3.x
 - Draw.io (for viewing generated diagrams)
+
+## Support me and the project!
+
+![](Readme/HelpPlz.jpg)
 
 ## Author
 
