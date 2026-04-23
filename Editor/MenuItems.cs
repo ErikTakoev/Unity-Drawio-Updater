@@ -5,131 +5,133 @@ using UnityEngine;
 
 namespace Expecto.Editor
 {
-    static class MenuItems
-    {
-        const string LogPrefix = "[Expecto] ";
+	static class MenuItems
+	{
+		const string LogPrefix = "[Expecto] ";
 
 
-        [MenuItem("Expecto/Drawio Diagram/Generate Drawio Diagram", validate = true)]
-        static bool ValidateRunGenerateUML()
-        {
-            CodeAnalyzerSettings codeAnalyzerSettings;
-            UMLSettings umlSettings;
+		[MenuItem("Tools/Drawio Diagram/Generate Drawio Diagram", validate = true)]
+		static bool ValidateRunGenerateUML()
+		{
+			CodeAnalyzerSettings codeAnalyzerSettings;
+			UMLSettings umlSettings;
 
-            if (!PythonRunner.LoadSettings(out codeAnalyzerSettings, out umlSettings))
-            {
-                return false;
-            }
-            return true;
-        }
+			if (!PythonRunner.LoadSettings(out codeAnalyzerSettings, out umlSettings))
+			{
+				return false;
+			}
 
-        [MenuItem("Expecto/Drawio Diagram/Generate Drawio Diagram", priority = 2, secondaryPriority = 10000)]
-        static void RunGenerateUML()
-        {
-            CodeAnalyzerSettings codeAnalyzerSettings;
-            UMLSettings umlSettings;
+			return true;
+		}
 
-            if (!PythonRunner.LoadSettings(out codeAnalyzerSettings, out umlSettings))
-            {
-                return;
-            }
+		[MenuItem("Tools/Drawio Diagram/Generate Drawio Diagram", priority = 2, secondaryPriority = 10000)]
+		static void RunGenerateUML()
+		{
+			CodeAnalyzerSettings codeAnalyzerSettings;
+			UMLSettings umlSettings;
 
-            PythonRunner.RunPythonScript(codeAnalyzerSettings, umlSettings);
-        }
+			if (!PythonRunner.LoadSettings(out codeAnalyzerSettings, out umlSettings))
+			{
+				return;
+			}
+
+			PythonRunner.RunPythonScript(codeAnalyzerSettings, umlSettings);
+		}
 
 
-        [MenuItem("Expecto/Drawio Diagram/Add Git Post Commit Hook", validate = true)]
-        static bool ValidateAddGitPostCommitHook()
-        {
-            CodeAnalyzerSettings codeAnalyzerSettings;
-            UMLSettings umlSettings;
+		[MenuItem("Tools/Drawio Diagram/Add Git Post Commit Hook", validate = true)]
+		static bool ValidateAddGitPostCommitHook()
+		{
+			CodeAnalyzerSettings codeAnalyzerSettings;
+			UMLSettings umlSettings;
 
-            if (!PythonRunner.LoadSettings(out codeAnalyzerSettings, out umlSettings))
-            {
-                return false;
-            }
+			if (!PythonRunner.LoadSettings(out codeAnalyzerSettings, out umlSettings))
+			{
+				return false;
+			}
 
-            string hookPath = Application.dataPath + "/../.git/hooks/post-commit";
-            return !File.Exists(hookPath);
-        }
+			string hookPath = Application.dataPath + "/../.git/hooks/post-commit";
+			return !File.Exists(hookPath);
+		}
 
-        [MenuItem("Expecto/Drawio Diagram/Add Git Post Commit Hook", secondaryPriority = 10002)]
-        static void AddGitPostCommitHook()
-        {
-            CodeAnalyzerSettings codeAnalyzerSettings;
-            UMLSettings umlSettings;
+		[MenuItem("Tools/Drawio Diagram/Add Git Post Commit Hook", secondaryPriority = 10002)]
+		static void AddGitPostCommitHook()
+		{
+			CodeAnalyzerSettings codeAnalyzerSettings;
+			UMLSettings umlSettings;
 
-            if (!PythonRunner.LoadSettings(out codeAnalyzerSettings, out umlSettings))
-            {
-                return;
-            }
+			if (!PythonRunner.LoadSettings(out codeAnalyzerSettings, out umlSettings))
+			{
+				return;
+			}
 
-            string arguments = PythonRunner.GetArguments(codeAnalyzerSettings, umlSettings);
-            string pythonPath = umlSettings.pythonPath;
+			string arguments = PythonRunner.GetArguments(codeAnalyzerSettings, umlSettings);
+			string pythonPath = umlSettings.pythonPath;
 
-            string hookPath = Application.dataPath + "/../.git/hooks/post-commit";
-            string hookContent =
-                "#!/bin/bash\n" +
-                "echo 'Git post commit hook started'\n" +
-                "REPO_ROOT=$(git rev-parse --show-toplevel)\n" +
-                "cd \"$REPO_ROOT\" || exit 1\n" +
-                $"{pythonPath} {arguments}\n" +
-                "echo 'Git post commit hook finished'\n";
+			string hookPath = Application.dataPath + "/../.git/hooks/post-commit";
+			string hookContent =
+				"#!/bin/bash\n" +
+				"echo 'Git post commit hook started'\n" +
+				"REPO_ROOT=$(git rev-parse --show-toplevel)\n" +
+				"cd \"$REPO_ROOT\" || exit 1\n" +
+				$"{pythonPath} {arguments}\n" +
+				"echo 'Git post commit hook finished'\n";
 
-            File.WriteAllText(hookPath, hookContent);
+			File.WriteAllText(hookPath, hookContent);
 
-            Debug.Log(LogPrefix + "Git post commit hook created at " + hookPath);
-        }
+			Debug.Log(LogPrefix + "Git post commit hook created at " + hookPath);
+		}
 
-        [MenuItem("Expecto/Drawio Diagram/Open Settings", validate = true)]
-        static bool ValidateOpenSettings()
-        {
-            CodeAnalyzerSettings codeAnalyzerSettings;
-            UMLSettings umlSettings;
+		[MenuItem("Tools/Drawio Diagram/Open Settings", validate = true)]
+		static bool ValidateOpenSettings()
+		{
+			CodeAnalyzerSettings codeAnalyzerSettings;
+			UMLSettings umlSettings;
 
-            if (!PythonRunner.LoadSettings(out codeAnalyzerSettings, out umlSettings))
-            {
-                return false;
-            }
+			if (!PythonRunner.LoadSettings(out codeAnalyzerSettings, out umlSettings))
+			{
+				return false;
+			}
 
-            return true;
-        }
+			return true;
+		}
 
-        [MenuItem("Expecto/Drawio Diagram/Open Settings", priority = 2, secondaryPriority = 10001)]
-        static void OpenSettings()
-        {
-            var umlSettings = PythonRunner.GetSettings<UMLSettings>("t:UMLSettings");
-            Selection.activeObject = umlSettings;
-        }
+		[MenuItem("Tools/Drawio Diagram/Open Settings", priority = 2, secondaryPriority = 10001)]
+		static void OpenSettings()
+		{
+			var umlSettings = PythonRunner.GetSettings<UMLSettings>("t:UMLSettings");
+			Selection.activeObject = umlSettings;
+		}
 
-        [MenuItem("Expecto/Drawio Diagram/Create Settings", validate = true)]
-        static bool ValidateCreateSettings()
-        {
-            var codeAnalyzerSettings = PythonRunner.GetSettings<CodeAnalyzerSettings>("t:CodeAnalyzerSettings");
-            if (codeAnalyzerSettings == null)
-            {
-                return false;
-            }
+		[MenuItem("Tools/Drawio Diagram/Create Settings", validate = true)]
+		static bool ValidateCreateSettings()
+		{
+			var codeAnalyzerSettings = PythonRunner.GetSettings<CodeAnalyzerSettings>("t:CodeAnalyzerSettings");
+			if (codeAnalyzerSettings == null)
+			{
+				return false;
+			}
 
-            var umlSettings = PythonRunner.GetSettings<UMLSettings>("t:UMLSettings");
-            return umlSettings == null;
-        }
+			var umlSettings = PythonRunner.GetSettings<UMLSettings>("t:UMLSettings");
+			return umlSettings == null;
+		}
 
-        [MenuItem("Expecto/Drawio Diagram/Create Settings", secondaryPriority = 10003)]
-        static void CreateSettings()
-        {
-            var umlSettings = ScriptableObject.CreateInstance<UMLSettings>();
+		[MenuItem("Tools/Drawio Diagram/Create Settings", secondaryPriority = 10003)]
+		static void CreateSettings()
+		{
+			var umlSettings = ScriptableObject.CreateInstance<UMLSettings>();
 
-            var path = Path.Combine("Assets", "Expecto", "UMLSettings.asset");
-            if (!AssetDatabase.IsValidFolder(Path.GetDirectoryName(path)))
-            {
-                AssetDatabase.CreateFolder("Assets", "Expecto");
-            }
-            AssetDatabase.CreateAsset(umlSettings, path);
-            Selection.activeObject = umlSettings;
+			var path = Path.Combine("Assets", "Expecto", "UMLSettings.asset");
+			if (!AssetDatabase.IsValidFolder(Path.GetDirectoryName(path)))
+			{
+				AssetDatabase.CreateFolder("Assets", "Expecto");
+			}
 
-            EditorUtility.SetDirty(umlSettings);
-            AssetDatabase.SaveAssets();
-        }
-    }
+			AssetDatabase.CreateAsset(umlSettings, path);
+			Selection.activeObject = umlSettings;
+
+			EditorUtility.SetDirty(umlSettings);
+			AssetDatabase.SaveAssets();
+		}
+	}
 }

@@ -6,9 +6,6 @@
 
 A convenient tool for automatically creating and updating UML diagrams based on your Unity code. Generates up-to-date class diagrams with complete representation of relationships between your project components, preserving your layout, styles, and arrow configurations.
 
-## Video Presentation
-
-[![Watch the video](https://img.youtube.com/vi/Rfj9ufq07pU/0.jpg)](https://www.youtube.com/watch?v=Rfj9ufq07pU)
 
 ## Features
 
@@ -25,13 +22,13 @@ A convenient tool for automatically creating and updating UML diagrams based on 
 2. Configure [Unity-AI-Context](https://github.com/ErikTakoev/Unity-AI-Context?tab=readme-ov-file#creating-settings)
 3. Add this package to your Unity project via Package Manager
 4. Ensure you have Python 3.x installed
-5. Create settings through the "Expecto/Drawio Diagram/Create Settings" menu
+5. Create settings through the "Tools/Drawio Diagram/Create Settings" menu
 
 ## Usage
 
-1. Configure parameters through the "Expecto/Drawio Diagram/Open Settings" menu
+1. Configure parameters through the "Tools/Drawio Diagram/Open Settings" menu
 2. Specify the Python path and output directory for diagrams
-3. Generate diagrams through the "Expecto/Drawio Diagram/Generate Drawio Diagram" menu
+3. Generate diagrams through the "Tools/Drawio Diagram/Generate Drawio Diagram" menu
 4. Optional: add a Git hook for automatic diagram updates after commits
 
 ## Configuration

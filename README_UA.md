@@ -6,9 +6,6 @@
 
 Зручний інструмент для автоматичного створення та оновлення UML-діаграм на основі вашого коду Unity. Генерує актуальні діаграми класів з повним відображенням зв'язків між компонентами вашого проекту, зберігаючи ваше розташування, стилі та конфігурації стрілок.
 
-## Відео презентація
-
-[![Watch the video](https://img.youtube.com/vi/Rfj9ufq07pU/0.jpg)](https://www.youtube.com/watch?v=Rfj9ufq07pU)
 
 ## Можливості
 
@@ -25,13 +22,13 @@
 2. Налаштуйте [Unity-AI-Context](https://github.com/ErikTakoev/Unity-AI-Context?tab=readme-ov-file#creating-settings)
 1. Додайте цей пакет до вашого проекту Unity через Package Manager
 2. Переконайтеся, що у вас встановлений Python 3.x
-3. Створіть налаштування через меню "Expecto/Drawio Diagram/Create Settings"
+3. Створіть налаштування через меню "Tools/Drawio Diagram/Create Settings"
 
 ## Використання
 
-1. Налаштуйте параметри через меню "Expecto/Drawio Diagram/Open Settings"
+1. Налаштуйте параметри через меню "Tools/Drawio Diagram/Open Settings"
 2. Вкажіть шлях до Python та каталог для виводу діаграм
-3. Генеруйте діаграми через меню "Expecto/Drawio Diagram/Generate Drawio Diagram"
+3. Генеруйте діаграми через меню "Tools/Drawio Diagram/Generate Drawio Diagram"
 4. Опціонально: додайте Git-хук для автоматичного оновлення діаграм після коміту
 
 ## Налаштування
@@ -46,10 +43,6 @@
 - Unity 2019.1 або новіше
 - Python 3.x
 - Draw.io (для перегляду згенерованих діаграм)
-
-## Підтримай мене і проєкт!
-
-![](Readme/HelpPlz.jpg)
 
 ## Автор
 
